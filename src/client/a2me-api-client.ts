@@ -13,37 +13,90 @@ import {
   getMockPersonProfile,
   getMockBirthdayCardContext,
 } from '../mock/mock-family-data.js';
+import { config } from '../config.js';
 
-// TODO: Replace mock implementations with real A2Me API calls
-// Required future endpoints:
-// - GET /family/members
-// - GET /family/dates/upcoming
-// - GET /family/activity/recent
-// - GET /people/{personId}/context
-// - GET /relationships/path
-// - GET /birthday-cards/context/{personId}
+// --- Subset of the kinnectd-api response shapes we consume (see ROADMAP.md tool→endpoint map) ---
 
+interface ApiUserDTO {
+  id: string;
+  username: string;
+  fullName: string | null;
+  preferredName: string | null;
+  birthDate: string | null; // ISO yyyy-MM-dd
+  deathDate: string | null;
+  avatarUrl: string | null;
+  managedAccountType: string | null;
+  memorializedAt: string | null;
+}
+
+interface ApiFamilyMember {
+  user: ApiUserDTO;
+  neutralLabel?: string;
+  genderedLabel?: string;
+}
+
+interface ApiGetFamilyResponse {
+  viewerUserId: string;
+  members: ApiFamilyMember[];
+}
+
+/**
+ * Client for the A2Me (kinnectd-api) REST surface. Read-only.
+ *
+ * When `config.useMock` is true (the default for the spike), every method returns mock data and
+ * no network call is made. Set `A2ME_USE_MOCK=false` (plus a real `A2ME_API_URL` / `A2ME_AUTH_TOKEN`)
+ * to hit the live API. Remaining methods are wired incrementally — see ROADMAP.md "Phase 0".
+ */
 export class A2MeApiClient {
   constructor(
     private baseUrl: string,
     private authToken: string,
   ) {}
 
+  /** Authenticated GET against kinnectd-api, returning parsed JSON of type T. */
+  private async get<T>(path: string): Promise<T> {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.authToken}`,
+        Accept: 'application/json',
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`A2Me API ${path} failed: ${res.status} ${res.statusText}`);
+    }
+    return (await res.json()) as T;
+  }
+
   async getFamilyMembers(_userId: string): Promise<FamilyMember[]> {
-    // TODO: Replace with GET {baseUrl}/family/members
-    return mockFamilyMembers.map((m) => ({
-      personId: m.personId,
-      displayName: m.displayName,
-      relationshipLabel: m.relationshipLabel,
-      birthdayMonthDay: m.birthdayMonthDay,
-      profilePhotoUrl: m.profilePhotoUrl,
-      isManagedAccount: m.isManagedAccount,
-      isLegacyAccount: m.isLegacyAccount,
+    if (config.useMock) {
+      return mockFamilyMembers.map((m) => ({
+        personId: m.personId,
+        displayName: m.displayName,
+        relationshipLabel: m.relationshipLabel,
+        birthdayMonthDay: m.birthdayMonthDay,
+        profilePhotoUrl: m.profilePhotoUrl,
+        isManagedAccount: m.isManagedAccount,
+        isLegacyAccount: m.isLegacyAccount,
+      }));
+    }
+
+    // GET /me/v2/family?includeLabels=true — scoped server-side to the caller's family.
+    const data = await this.get<ApiGetFamilyResponse>('/me/v2/family?includeLabels=true');
+    return data.members.map((m) => ({
+      personId: m.user.id,
+      displayName: m.user.preferredName || m.user.fullName || m.user.username,
+      relationshipLabel: m.neutralLabel ?? '',
+      // Privacy: month-day only, never the birth year.
+      birthdayMonthDay: m.user.birthDate ? m.user.birthDate.slice(5) : null,
+      profilePhotoUrl: m.user.avatarUrl,
+      isManagedAccount: m.user.managedAccountType != null,
+      isLegacyAccount: m.user.memorializedAt != null || m.user.deathDate != null,
     }));
   }
 
   async getUpcomingDates(_userId: string, daysAhead: number = 30): Promise<FamilyDate[]> {
-    // TODO: Replace with GET {baseUrl}/family/dates/upcoming?days={daysAhead}
+    // TODO(Phase 0): derive from getFamilyMembers() birthdays + GET /events?timing=UPCOMING.
     return getMockFamilyDates().filter((d) => d.daysUntil <= daysAhead);
   }
 
@@ -52,7 +105,7 @@ export class A2MeApiClient {
     sinceHours: number = 72,
     limit: number = 20,
   ): Promise<FamilyActivity[]> {
-    // TODO: Replace with GET {baseUrl}/family/activity/recent?sinceHours={sinceHours}&limit={limit}
+    // TODO(Phase 0): GET /posts/feed?page=0&size={limit}, then filter client-side by createdAt.
     const cutoff = new Date(Date.now() - sinceHours * 60 * 60 * 1000);
     return getMockRecentActivity()
       .filter((a) => new Date(a.createdAt) >= cutoff)
@@ -60,7 +113,7 @@ export class A2MeApiClient {
   }
 
   async getPersonProfile(_userId: string, personId: string): Promise<PersonProfile | null> {
-    // TODO: Replace with GET {baseUrl}/people/{personId}/context
+    // TODO(Phase 0): compose family member (above) + GET /posts/users/{personId}.
     return getMockPersonProfile(personId);
   }
 
@@ -69,7 +122,7 @@ export class A2MeApiClient {
     personAId: string,
     personBId: string,
   ): Promise<RelationshipResult | null> {
-    // TODO: Replace with GET {baseUrl}/relationships/path?personA={personAId}&personB={personBId}
+    // TODO(Phase 0): derive from the labeled family list (up/down + neutralLabel) — no extra call.
     const personA = mockFamilyMembers.find((m) => m.personId === personAId);
     const personB = mockFamilyMembers.find((m) => m.personId === personBId);
     if (!personA || !personB) return null;
@@ -86,7 +139,7 @@ export class A2MeApiClient {
     _userId: string,
     personId: string,
   ): Promise<BirthdayCardContext | null> {
-    // TODO: Replace with GET {baseUrl}/birthday-cards/context/{personId}
+    // TODO(Phase 0): compose getPersonProfile() + recent activity for the person.
     return getMockBirthdayCardContext(personId);
   }
 }
