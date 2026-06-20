@@ -43,9 +43,8 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
         .json({ error: 'unauthorized' });
       return;
     }
-    // Carry the verified token so the tool handlers call kinnectd-api as this user.
-    res.locals.a2meToken = principal.token;
-    next();
+    // Enter the user's context for the rest of the request so the API client forwards their token.
+    requestContext.run({ a2meToken: principal.token }, () => next());
   };
 
   app.post(MCP_PATH, requireBearer, async (req: Request, res: Response) => {
@@ -56,11 +55,8 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
       void transport.close();
       void server.close();
     });
-    // Run the whole request in the user's context so the API client forwards their token.
-    await requestContext.run({ a2meToken: res.locals.a2meToken as string }, async () => {
-      await server.connect(transport);
-      await transport.handleRequest(req, res, req.body as unknown);
-    });
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body as unknown);
   });
 
   return app;
