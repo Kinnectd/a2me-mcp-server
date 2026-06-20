@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { DevTokenVerifier, ScalekitTokenVerifier } from '../../src/auth/token-verifier.js';
+import { DevTokenVerifier } from '../../src/auth/token-verifier.js';
 
+// ScalekitTokenVerifier has its own suite in scalekit-token-verifier.test.ts.
 describe('DevTokenVerifier', () => {
   const verifier = new DevTokenVerifier();
 
@@ -11,12 +12,5 @@ describe('DevTokenVerifier', () => {
 
   it('rejects an empty token', async () => {
     expect(await verifier.verify('')).toBeNull();
-  });
-});
-
-describe('ScalekitTokenVerifier', () => {
-  it('fails loudly until wired (never silently accepts)', async () => {
-    const verifier = new ScalekitTokenVerifier('', '');
-    await expect(verifier.verify('anything')).rejects.toThrow(/not wired/);
   });
 });

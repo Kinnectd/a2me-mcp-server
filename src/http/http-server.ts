@@ -21,9 +21,13 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
   app.use(express.json());
 
   // RFC 9728 — public, unauthenticated, so clients can discover the authorization server.
-  app.get(RESOURCE_METADATA_PATH, (_req: Request, res: Response) => {
+  // Serve at the root path and at the path-suffixed variant (RFC 9728 path-insertion), since some
+  // clients derive the metadata URL from the resource path (e.g. .../oauth-protected-resource/mcp).
+  const metadataHandler = (_req: Request, res: Response): void => {
     res.json(buildProtectedResourceMetadata());
-  });
+  };
+  app.get(RESOURCE_METADATA_PATH, metadataHandler);
+  app.get(`${RESOURCE_METADATA_PATH}${MCP_PATH}`, metadataHandler);
 
   // On a missing/invalid token, challenge with a pointer to the resource metadata so the MCP
   // client knows where to start the OAuth flow (per the MCP authorization spec).

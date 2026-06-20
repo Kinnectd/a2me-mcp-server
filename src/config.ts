@@ -1,3 +1,9 @@
+const port = process.env.MCP_SERVER_PORT || '3100';
+// Public URL this server is reachable at — the "resource" in the OAuth protected-resource metadata
+// and the expected token audience. Set MCP_PUBLIC_URL to the deployed URL (e.g.
+// https://dev.mcp.a2me.app); defaults to localhost for dev.
+const mcpPublicUrl = process.env.MCP_PUBLIC_URL || `http://localhost:${port}`;
+
 export const config = {
   // Defaults to a local kinnectd-api so flipping A2ME_USE_MOCK=false never silently calls a shared
   // environment — set A2ME_API_URL explicitly (e.g. https://dev.api.kinnectd.com/api) for dev/prod.
@@ -12,19 +18,19 @@ export const config = {
   useMock: (process.env.A2ME_USE_MOCK || 'true').toLowerCase() !== 'false',
   // Timeout (ms) for outbound kinnectd-api calls, so a hung connection can't stall a tool request.
   requestTimeoutMs: parseInt(process.env.A2ME_REQUEST_TIMEOUT_MS || '10000', 10),
-  mcpServerPort: parseInt(process.env.MCP_SERVER_PORT || '3100', 10),
+  mcpServerPort: parseInt(port, 10),
   // Transport: 'stdio' (local, default) or 'http' (remote Streamable HTTP — needed for the
   // hosted OAuth "Connect a2me" flow). See docs/auth-design.md.
   transport: (process.env.MCP_TRANSPORT || 'stdio').toLowerCase(),
-  // Public URL this server is reachable at — the "resource" in the OAuth protected-resource
-  // metadata. Defaults to localhost for dev.
-  mcpPublicUrl:
-    process.env.MCP_PUBLIC_URL || `http://localhost:${process.env.MCP_SERVER_PORT || '3100'}`,
+  mcpPublicUrl,
   // Token verifier: 'dev' (forwards the bearer unverified — DEV ONLY) or 'scalekit' (validates the
-  // provider JWT). The managed provider's values land here once Byron configures Scalekit.
+  // Scalekit-issued JWT against the issuer's JWKS).
   authProvider: (process.env.MCP_AUTH_PROVIDER || 'dev').toLowerCase(),
+  // Scalekit authorization server (the metadata's `authorization_servers`), e.g.
+  // https://kinnectd.scalekit.dev/resources/res_130696843431510786
   authServerIssuer: process.env.MCP_AUTH_ISSUER || '',
-  authAudience: process.env.MCP_AUTH_AUDIENCE || '',
+  // Expected token audience — the MCP server's resource URL. Defaults to the public URL.
+  authAudience: process.env.MCP_AUTH_AUDIENCE || mcpPublicUrl,
   serverName: 'a2me-family-context',
   serverVersion: '0.1.0',
 };
