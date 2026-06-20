@@ -53,9 +53,9 @@ auth model is locked down (posting on someone's behalf needs the scoping + moder
 
 ## Open design decisions (need Byron) before Phase 2
 
-1. **Where does the OAuth authorization server live?** Spring Authorization Server inside
-   kinnectd-api, a small standalone auth service, or a managed provider (e.g. Auth0/Firebase as
-   the IdP behind our own AS)? Trade-off: build/control vs. vendor/speed.
+1. ✅ **Where does the OAuth authorization server live? — DECIDED:** vendor-agnostic seam + a
+   managed MCP-auth provider (federated to Firebase) for v1, swap to a self-hosted AS later. Full
+   architecture in [docs/auth-design.md](docs/auth-design.md).
 2. **Token format & lifetime** — opaque + introspection vs. signed JWT the MCP server validates
    offline; access-token TTL + refresh policy.
 3. **Scopes** — start with a single read-only `family:read` scope; expand for Phase 4 writes.
