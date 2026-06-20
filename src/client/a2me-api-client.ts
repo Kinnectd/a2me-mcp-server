@@ -53,19 +53,27 @@ export class A2MeApiClient {
     private authToken: string,
   ) {}
 
-  /** Authenticated GET against kinnectd-api, returning parsed JSON of type T. */
+  /** Authenticated GET against kinnectd-api, returning parsed JSON of type T. Times out so a hung
+   * connection can't stall a tool request indefinitely (Node fetch has no default timeout). */
   private async get<T>(path: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.authToken}`,
-        Accept: 'application/json',
-      },
-    });
-    if (!res.ok) {
-      throw new Error(`A2Me API ${path} failed: ${res.status} ${res.statusText}`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+    try {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.authToken}`,
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        throw new Error(`A2Me API ${path} failed: ${res.status} ${res.statusText}`);
+      }
+      return (await res.json()) as T;
+    } finally {
+      clearTimeout(timer);
     }
-    return (await res.json()) as T;
   }
 
   async getFamilyMembers(_userId: string): Promise<FamilyMember[]> {
@@ -85,8 +93,11 @@ export class A2MeApiClient {
     const data = await this.get<ApiGetFamilyResponse>('/me/v2/family?includeLabels=true');
     return data.members.map((m) => ({
       personId: m.user.id,
+      // username is the public @handle (not email/phone), used only if no name is set.
       displayName: m.user.preferredName || m.user.fullName || m.user.username,
-      relationshipLabel: m.neutralLabel ?? '',
+      // Must stay non-empty: some tools match with `.includes(relationshipLabel)`, and
+      // includes('') is always true (false positives).
+      relationshipLabel: m.neutralLabel || m.genderedLabel || 'relative',
       // Privacy: month-day only, never the birth year.
       birthdayMonthDay: m.user.birthDate ? m.user.birthDate.slice(5) : null,
       profilePhotoUrl: m.user.avatarUrl,
