@@ -1,0 +1,102 @@
+name: Create Tag & Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        type: choice
+        options:
+          - dev
+          - prod
+        required: true
+      version:
+        description: 'Release version (e.g., 1.0.2)'
+        type: string
+        required: true
+
+env:
+  REPO_NAME: a2me-mcp-server
+
+jobs:
+  create-tag:
+    name: Create Tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      branch: ${{ steps.branch.outputs.branch }}
+    steps:
+      - name: Validate version format
+        run: |
+          if ! [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format '${{ inputs.version }}'. Use semantic versioning (e.g., 1.0.2)"
+            exit 1
+          fi
+
+      - name: Determine branch and tag
+        id: branch
+        run: |
+          if [ "${{ inputs.environment }}" == "prod" ]; then
+            echo "branch=main" >> $GITHUB_OUTPUT
+          else
+            echo "branch=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine tag name
+        id: tag
+        run: |
+          if [ "${{ inputs.environment }}" == "prod" ]; then
+            echo "tag=v${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=dev-v${{ inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.branch.outputs.branch }}
+          fetch-depth: 0
+
+      - name: Check tag doesn't already exist
+        run: |
+          if git rev-parse "${{ steps.tag.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::Tag '${{ steps.tag.outputs.tag }}' already exists. Bump the version number."
+            exit 1
+          fi
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.tag.outputs.tag }}" -m "Release ${{ steps.tag.outputs.tag }}"
+          git push origin "${{ steps.tag.outputs.tag }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          prerelease: ${{ inputs.environment == 'dev' }}
+          generate_release_notes: true
+
+  deploy:
+    name: Trigger Deployment
+    needs: create-tag
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Trigger deploy-service in kinnectd-workflows
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOWS_DISPATCH_TOKEN }}
+        run: |
+          echo "🚀 Triggering deployment of ${{ env.REPO_NAME }} @ ${{ needs.create-tag.outputs.tag }} to ${{ inputs.environment }}..."
+          gh workflow run deploy-service.yml \
+            --repo Kinnectd/kinnectd-workflows \
+            --ref main \
+            -f repo=${{ env.REPO_NAME }} \
+            -f tag=${{ needs.create-tag.outputs.tag }} \
+            -f environment=${{ inputs.environment }} \
+            -f core-version=
+          echo "✅ Deployment triggered. Monitor: https://github.com/Kinnectd/kinnectd-workflows/actions"
