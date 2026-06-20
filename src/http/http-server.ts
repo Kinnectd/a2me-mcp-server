@@ -2,6 +2,7 @@ import express, { type Request, type Response, type NextFunction, type Express }
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from '../server.js';
 import { config } from '../config.js';
+import { requestContext } from '../request-context.js';
 import { createTokenVerifier, type TokenVerifier } from '../auth/token-verifier.js';
 import {
   buildProtectedResourceMetadata,
@@ -42,9 +43,8 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
         .json({ error: 'unauthorized' });
       return;
     }
-    // TODO(next): thread principal.token into the tool handlers so each call hits kinnectd-api as
-    // this user. Today the tools read config.a2meAuthToken (single-user dev mode).
-    next();
+    // Enter the user's context for the rest of the request so the API client forwards their token.
+    requestContext.run({ a2meToken: principal.token }, () => next());
   };
 
   app.post(MCP_PATH, requireBearer, async (req: Request, res: Response) => {

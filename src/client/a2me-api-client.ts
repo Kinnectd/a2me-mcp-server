@@ -14,6 +14,7 @@ import {
   getMockBirthdayCardContext,
 } from '../mock/mock-family-data.js';
 import { config } from '../config.js';
+import { requestContext } from '../request-context.js';
 
 // --- Subset of the kinnectd-api response shapes we consume (see ROADMAP.md tool→endpoint map) ---
 
@@ -59,10 +60,13 @@ export class A2MeApiClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), config.requestTimeoutMs);
     try {
+      // Prefer the per-request user token (remote/HTTP transport) so we call kinnectd-api as the
+      // authenticated user; fall back to the constructor token (stdio / dev).
+      const token = requestContext.getStore()?.a2meToken ?? this.authToken;
       const res = await fetch(`${this.baseUrl}${path}`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${this.authToken}`,
+          Authorization: `Bearer ${token}`,
           Accept: 'application/json',
         },
         signal: controller.signal,
