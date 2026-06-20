@@ -1,4 +1,5 @@
-const port = process.env.MCP_SERVER_PORT || '3100';
+// Cloud Run injects PORT; honor it first, then MCP_SERVER_PORT, then a local default.
+const port = process.env.PORT || process.env.MCP_SERVER_PORT || '3100';
 // Public URL this server is reachable at — the "resource" in the OAuth protected-resource metadata
 // and the expected token audience. Set MCP_PUBLIC_URL to the deployed URL (e.g.
 // https://dev.mcp.a2me.app); defaults to localhost for dev.
