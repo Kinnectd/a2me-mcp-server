@@ -108,7 +108,8 @@ export class ScalekitTokenVerifier implements TokenVerifier {
         const claims = decodeJwt(bearerToken);
         console.warn(
           `[scalekit] token claims: aud=${JSON.stringify(claims.aud)} iss=${JSON.stringify(claims.iss)} ` +
-            `hasEmail=${claims.email != null} hasEmailVerified=${claims.email_verified != null} ` +
+            // email value is PII so log presence only; email_verified is a non-sensitive boolean, log it.
+            `hasEmail=${claims.email != null} emailVerified=${JSON.stringify(claims.email_verified)} ` +
             `| expected aud=${JSON.stringify(this.audience)} iss=${JSON.stringify(this.tokenIssuer ?? this.issuer)}`,
         );
       } catch {
