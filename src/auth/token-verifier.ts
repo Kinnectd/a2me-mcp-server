@@ -1,4 +1,10 @@
-import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose';
+import {
+  createRemoteJWKSet,
+  decodeJwt,
+  jwtVerify,
+  type JWTPayload,
+  type JWTVerifyGetKey,
+} from 'jose';
 import { config } from '../config.js';
 
 /** A jose key source: a remote JWKS resolver, or a key (used in tests). */
@@ -95,6 +101,20 @@ export class ScalekitTokenVerifier implements TokenVerifier {
       // Bad signature / wrong iss-aud / expired / malformed. The 401 response stays generic, but
       // log the reason server-side so a misconfig (iss/aud) is diagnosable from the logs.
       console.warn(`[scalekit] token rejected: ${err instanceof Error ? err.message : String(err)}`);
+      // Diagnostic: decode WITHOUT verifying to surface what the token actually carries vs what we
+      // expect, so an aud/iss/claim mismatch is obvious. Logs identifiers only — never the token,
+      // the email, or the sub value.
+      try {
+        const claims = decodeJwt(bearerToken);
+        console.warn(
+          `[scalekit] token claims: aud=${JSON.stringify(claims.aud)} iss=${JSON.stringify(claims.iss)} ` +
+            // email value is PII so log presence only; email_verified is a non-sensitive boolean, log it.
+            `hasEmail=${claims.email != null} emailVerified=${JSON.stringify(claims.email_verified)} ` +
+            `| expected aud=${JSON.stringify(this.audience)} iss=${JSON.stringify(this.tokenIssuer ?? this.issuer)}`,
+        );
+      } catch {
+        // Not even a decodable JWT — nothing useful to add.
+      }
       return null;
     }
   }
