@@ -94,7 +94,7 @@ export class ScalekitTokenVerifier implements TokenVerifier {
     } catch (err) {
       // Bad signature / wrong iss-aud / expired / malformed. The 401 response stays generic, but
       // log the reason server-side so a misconfig (iss/aud) is diagnosable from the logs.
-      console.warn(`[scalekit] token rejected: ${(err as Error).message}`);
+      console.warn(`[scalekit] token rejected: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
   }
