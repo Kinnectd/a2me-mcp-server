@@ -52,6 +52,11 @@ export class DevTokenVerifier implements TokenVerifier {
 export class ScalekitTokenVerifier implements TokenVerifier {
   readonly name = 'scalekit';
   private keys?: KeyInput;
+  // The issuer the AS actually stamps on tokens, read from its published metadata. Scalekit
+  // advertises the *base* issuer (e.g. https://kinnectd.scalekit.dev) even though discovery and
+  // JWKS live under the per-resource URL in MCP_AUTH_ISSUER — so the `iss` claim must be checked
+  // against this, not the discovery URL, or every token is rejected.
+  private tokenIssuer?: string;
 
   constructor(
     private readonly issuer: string,
@@ -62,7 +67,7 @@ export class ScalekitTokenVerifier implements TokenVerifier {
     this.keys = keys;
   }
 
-  /** Lazily resolves (and caches) the JWKS, discovering its URL from the AS metadata. */
+  /** Lazily resolves (and caches) the JWKS + token issuer, discovering both from the AS metadata. */
   private async resolveKeys(): Promise<KeyInput> {
     if (this.keys) return this.keys;
     if (!this.issuer) throw new Error('Scalekit issuer is not configured (MCP_AUTH_ISSUER)');
@@ -70,8 +75,9 @@ export class ScalekitTokenVerifier implements TokenVerifier {
     if (!res.ok) {
       throw new Error(`Scalekit AS metadata fetch failed: ${res.status} ${res.statusText}`);
     }
-    const meta = (await res.json()) as { jwks_uri?: string };
+    const meta = (await res.json()) as { jwks_uri?: string; issuer?: string };
     if (!meta.jwks_uri) throw new Error('Scalekit AS metadata missing jwks_uri');
+    this.tokenIssuer = meta.issuer ?? this.issuer;
     this.keys = createRemoteJWKSet(new URL(meta.jwks_uri));
     return this.keys;
   }
@@ -81,12 +87,14 @@ export class ScalekitTokenVerifier implements TokenVerifier {
     try {
       const keys = await this.resolveKeys();
       const { payload } = await jwtVerify(bearerToken, keys as JWTVerifyGetKey, {
-        issuer: this.issuer,
+        issuer: this.tokenIssuer ?? this.issuer,
         audience: this.audience,
       });
       return { token: bearerToken, scopes: extractScopes(payload) };
-    } catch {
-      // Bad signature / wrong iss-aud / expired / malformed — reject without leaking specifics.
+    } catch (err) {
+      // Bad signature / wrong iss-aud / expired / malformed. The 401 response stays generic, but
+      // log the reason server-side so a misconfig (iss/aud) is diagnosable from the logs.
+      console.warn(`[scalekit] token rejected: ${(err as Error).message}`);
       return null;
     }
   }
