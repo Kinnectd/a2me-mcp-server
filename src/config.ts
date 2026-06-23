@@ -20,8 +20,9 @@ export const config = {
   // Timeout (ms) for outbound kinnectd-api calls, so a hung connection can't stall a tool request.
   requestTimeoutMs: parseInt(process.env.A2ME_REQUEST_TIMEOUT_MS || '10000', 10),
   // Temporary: log the forwarded-token source/shape per API call (no token value). On by default
-  // during the auth bring-up; set MCP_DEBUG_TOKENS=false to silence without a redeploy.
-  debugTokens: (process.env.MCP_DEBUG_TOKENS || 'true').toLowerCase() !== 'false',
+  // Off by default now the flow works; set MCP_DEBUG_TOKENS=true to re-enable the per-call
+  // forwarded-token-source / token-claims diagnostics when debugging an auth issue.
+  debugTokens: (process.env.MCP_DEBUG_TOKENS || 'false').toLowerCase() === 'true',
   mcpServerPort: parseInt(port, 10),
   // Transport: 'stdio' (local, default) or 'http' (remote Streamable HTTP — needed for the
   // hosted OAuth "Connect a2me" flow). See docs/auth-design.md.
