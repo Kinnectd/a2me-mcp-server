@@ -1,9 +1,18 @@
 import type { PersonMatch, FamilyMemberSearchResult, MessageContext } from '../types/index.js';
-import {
-  mockFamilyMembers,
-  getMockFamilyDates,
-  type MockFamilyMemberData,
-} from '../mock/mock-family-data.js';
+import { mockFamilyMembers, getMockFamilyDates } from '../mock/mock-family-data.js';
+
+/**
+ * The minimal member shape the resolver needs. Both the rich mock data and the live
+ * `FamilyMemberDetail` satisfy it, so the same matching logic runs over mock or real family data —
+ * the caller injects whichever (defaulting to mock keeps the unit tests provider-free).
+ */
+export interface ResolverMember {
+  personId: string;
+  displayName: string;
+  relationshipLabel: string;
+  interests?: string[];
+  bioSummary?: string | null;
+}
 
 const RELATIONSHIP_ALIASES: Record<string, string[]> = {
   mother: ['mom', 'mum', 'mama', 'my mother', 'my mom'],
@@ -25,8 +34,12 @@ function normalizeQuery(query: string): string {
     .replace(/^my\s+/, '');
 }
 
-function scoreMatch(member: MockFamilyMemberData, query: string): number {
+function scoreMatch(member: ResolverMember, query: string): number {
   const normalized = normalizeQuery(query);
+  // Live family labels are typically title-cased ("Parent", "Mother"); the mock's are lowercase.
+  // Compare on a lowercased label (and use it for alias lookup) so matching works either way —
+  // results still carry the member's original label.
+  const label = member.relationshipLabel.toLowerCase();
 
   // Exact name match
   if (member.displayName.toLowerCase() === normalized) return 1.0;
@@ -36,24 +49,28 @@ function scoreMatch(member: MockFamilyMemberData, query: string): number {
   if (firstName === normalized) return 0.95;
 
   // Relationship label exact match
-  if (member.relationshipLabel === normalized) return 0.9;
+  if (label === normalized) return 0.9;
 
   // Relationship alias match
-  const aliases = RELATIONSHIP_ALIASES[member.relationshipLabel] || [];
+  const aliases = RELATIONSHIP_ALIASES[label] || [];
   if (aliases.some((a) => a === query.toLowerCase().trim())) return 0.9;
 
   // Partial name match
   if (member.displayName.toLowerCase().includes(normalized)) return 0.7;
 
   // Partial relationship match
-  if (member.relationshipLabel.includes(normalized)) return 0.6;
+  if (label.includes(normalized)) return 0.6;
 
   return 0;
 }
 
-export function resolvePersonReference(userId: string, query: string): FamilyMemberSearchResult {
-  const members = mockFamilyMembers.filter((m) => m.personId !== userId);
-  const scored: { member: MockFamilyMemberData; score: number }[] = members
+export function resolvePersonReference(
+  userId: string,
+  query: string,
+  family: ResolverMember[] = mockFamilyMembers,
+): FamilyMemberSearchResult {
+  const members = family.filter((m) => m.personId !== userId);
+  const scored: { member: ResolverMember; score: number }[] = members
     .map((member) => ({ member, score: scoreMatch(member, query) }))
     .filter((s) => s.score > 0)
     .sort((a, b) => b.score - a.score);
@@ -90,11 +107,13 @@ export function resolvePersonReference(userId: string, query: string): FamilyMem
 export function resolveRelationshipReference(
   userId: string,
   label: string,
+  family: ResolverMember[] = mockFamilyMembers,
 ): FamilyMemberSearchResult {
   const normalized = normalizeQuery(label);
-  const members = mockFamilyMembers.filter((m) => m.personId !== userId);
+  const members = family.filter((m) => m.personId !== userId);
 
-  const directMatch = members.filter((m) => m.relationshipLabel === normalized);
+  // Labels may be title-cased in live data — compare lowercased (see scoreMatch).
+  const directMatch = members.filter((m) => m.relationshipLabel.toLowerCase() === normalized);
   if (directMatch.length > 0) {
     return {
       matches: directMatch.map((m) => ({
@@ -114,7 +133,7 @@ export function resolveRelationshipReference(
   // Check aliases
   for (const [relLabel, aliases] of Object.entries(RELATIONSHIP_ALIASES)) {
     if (aliases.some((a) => normalizeQuery(a) === normalized || a === label.toLowerCase().trim())) {
-      const aliasMatches = members.filter((m) => m.relationshipLabel === relLabel);
+      const aliasMatches = members.filter((m) => m.relationshipLabel.toLowerCase() === relLabel);
       if (aliasMatches.length > 0) {
         return {
           matches: aliasMatches.map((m) => ({
@@ -204,13 +223,18 @@ export function resolveUpcomingDates(
   return result;
 }
 
-export function getSafeMemoryContext(_userId: string, personId: string): string[] {
-  const member = mockFamilyMembers.find((m) => m.personId === personId);
+export function getSafeMemoryContext(
+  _userId: string,
+  personId: string,
+  family: ResolverMember[] = mockFamilyMembers,
+): string[] {
+  const member = family.find((m) => m.personId === personId);
   if (!member) return [];
 
   const memories: string[] = [];
-  if (member.interests.length > 0) {
-    memories.push(`Known interests: ${member.interests.join(', ')}`);
+  const interests = member.interests ?? [];
+  if (interests.length > 0) {
+    memories.push(`Known interests: ${interests.join(', ')}`);
   }
   if (member.bioSummary) {
     memories.push(member.bioSummary);
@@ -224,21 +248,23 @@ export function getMessageContext(
   personReference: string,
   occasion?: string,
   tone?: string,
+  family: ResolverMember[] = mockFamilyMembers,
 ): MessageContext | null {
-  const result = resolvePersonReference(userId, personReference);
+  const result = resolvePersonReference(userId, personReference, family);
   if (result.matches.length === 0) return null;
 
   const person = result.matches[0];
-  const member = mockFamilyMembers.find((m) => m.personId === person.personId);
+  const member = family.find((m) => m.personId === person.personId);
   if (!member) return null;
 
-  const memories = getSafeMemoryContext(userId, person.personId);
+  const memories = getSafeMemoryContext(userId, person.personId, family);
   const resolvedOccasion = occasion || 'general message';
+  const interests = member.interests ?? [];
 
   const suggestedAngles: string[] = [];
-  if (member.interests.length > 0) {
+  if (interests.length > 0) {
     suggestedAngles.push(
-      `Reference their interest in ${member.interests[0]} or ${member.interests[1] || member.interests[0]}`,
+      `Reference their interest in ${interests[0]} or ${interests[1] || interests[0]}`,
     );
   }
   suggestedAngles.push(`Mention your relationship as their ${member.relationshipLabel}`);
