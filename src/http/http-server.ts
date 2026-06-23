@@ -43,14 +43,14 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
         .json({ error: 'unauthorized' });
       return;
     }
-    // Stash the verified token on the request; the MCP route below enters the user's async context
-    // around the entire handler (not just next()) so the API client can forward it.
-    (req as Request & { a2meToken?: string }).a2meToken = principal.token;
+    // Stash the verified token in res.locals (purpose-built per-request storage); the MCP route
+    // below enters the user's async context around the entire handler (not just next()).
+    res.locals.a2meToken = principal.token;
     next();
   };
 
   app.post(MCP_PATH, requireBearer, async (req: Request, res: Response) => {
-    const a2meToken = (req as Request & { a2meToken?: string }).a2meToken ?? '';
+    const a2meToken = (res.locals.a2meToken as string | undefined) ?? '';
     // Run the whole request inside the user's context (and await it) so AsyncLocalStorage stays
     // active through transport.handleRequest and the tool handlers. The previous
     // `run(() => next())` exited the context the moment next() returned — before any async tool
