@@ -14,8 +14,8 @@ export const config = {
   // access token once that lands — see ROADMAP.md). Mocked when useMock is on.
   a2meAuthToken: process.env.A2ME_AUTH_TOKEN || 'mock-dev-token',
   // When true (default), tools return mock family data and never call the live API. Set
-  // A2ME_USE_MOCK=false to exercise the real integration. NOTE: only getFamilyMembers makes a live
-  // call so far; the other client methods still return mock data until Phase 0 wires them.
+  // A2ME_USE_MOCK=false to exercise the real integration — all client methods now have a live path
+  // (family, upcoming dates, recent activity, profile, relationship, birthday-card context).
   useMock: (process.env.A2ME_USE_MOCK || 'true').toLowerCase() !== 'false',
   // Timeout (ms) for outbound kinnectd-api calls, so a hung connection can't stall a tool request.
   requestTimeoutMs: parseInt(process.env.A2ME_REQUEST_TIMEOUT_MS || '10000', 10),
