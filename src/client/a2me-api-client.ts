@@ -62,13 +62,15 @@ export class A2MeApiClient {
     try {
       // Prefer the per-request user token (remote/HTTP transport) so we call kinnectd-api as the
       // authenticated user; fall back to the constructor token (stdio / dev).
-      const store = requestContext.getStore();
-      const token = store?.a2meToken ?? this.authToken;
-      // Diagnostic: which token source, and whether it looks like a JWT (3 dot-segments) — so we can
-      // tell "fallback forwarded" from "real token, signature issue". No token value is logged.
-      console.warn(
-        `[api] GET ${path} token=${store?.a2meToken ? 'per-request' : 'FALLBACK'} jwtSegments=${token.split('.').length}`,
-      );
+      const perRequestToken = requestContext.getStore()?.a2meToken;
+      const token = perRequestToken ?? this.authToken;
+      if (config.debugTokens) {
+        // Diagnostic: token source (derived from the same nullish check as the selection above) and
+        // whether it looks like a JWT (3 dot-segments) — tells "fallback forwarded" from "real
+        // token, signature issue". No token value is logged.
+        const source = perRequestToken == null ? 'FALLBACK' : 'per-request';
+        console.warn(`[api] GET ${path} token=${source} jwtSegments=${token.split('.').length}`);
+      }
       const res = await fetch(`${this.baseUrl}${path}`, {
         method: 'GET',
         headers: {

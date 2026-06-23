@@ -19,6 +19,9 @@ export const config = {
   useMock: (process.env.A2ME_USE_MOCK || 'true').toLowerCase() !== 'false',
   // Timeout (ms) for outbound kinnectd-api calls, so a hung connection can't stall a tool request.
   requestTimeoutMs: parseInt(process.env.A2ME_REQUEST_TIMEOUT_MS || '10000', 10),
+  // Temporary: log the forwarded-token source/shape per API call (no token value). On by default
+  // during the auth bring-up; set MCP_DEBUG_TOKENS=false to silence without a redeploy.
+  debugTokens: (process.env.MCP_DEBUG_TOKENS || 'true').toLowerCase() !== 'false',
   mcpServerPort: parseInt(port, 10),
   // Transport: 'stdio' (local, default) or 'http' (remote Streamable HTTP — needed for the
   // hosted OAuth "Connect a2me" flow). See docs/auth-design.md.
