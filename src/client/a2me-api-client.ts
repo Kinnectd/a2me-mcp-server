@@ -186,7 +186,8 @@ export class A2MeApiClient {
     try {
       // Prefer the per-request user token (remote/HTTP transport) so we call kinnectd-api as the
       // authenticated user; fall back to the constructor token (stdio / dev).
-      const perRequestToken = requestContext.getStore()?.a2meToken;
+      const store = requestContext.getStore();
+      const perRequestToken = store?.a2meToken;
       const token = perRequestToken ?? this.authToken;
       if (config.debugTokens) {
         // Diagnostic: token source (derived from the same nullish check as the selection above) and
@@ -195,12 +196,16 @@ export class A2MeApiClient {
         const source = perRequestToken == null ? 'FALLBACK' : 'per-request';
         console.warn(`[api] GET ${path} token=${source} jwtSegments=${token.split('.').length}`);
       }
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      };
+      // Usage-attribution headers (kinnectd-api records + normalizes these for MCP usage tracking).
+      if (store?.mcpTool) headers['X-MCP-Tool'] = store.mcpTool;
+      if (store?.mcpClient) headers['X-MCP-Client'] = store.mcpClient;
       const res = await fetch(`${this.baseUrl}${path}`, {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+        headers,
         signal: controller.signal,
       });
       if (!res.ok) {

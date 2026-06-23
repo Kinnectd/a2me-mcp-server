@@ -8,6 +8,12 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 export interface RequestContext {
   /** The caller's verified bearer token, forwarded to kinnectd-api on their behalf. */
   a2meToken: string;
+  /** The MCP tool being executed (from the tools/call body), forwarded as `X-MCP-Tool` so the api
+   * can attribute access to a specific tool — the request path alone can't (tools share endpoints). */
+  mcpTool?: string;
+  /** The calling assistant, forwarded as `X-MCP-Client` (the "via Claude" detail). From the request
+   * `User-Agent`: in stateless transport the MCP `clientInfo` isn't available on tool calls. */
+  mcpClient?: string;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();
