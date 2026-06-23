@@ -56,6 +56,7 @@ describe('per-request token forwarding (E2E through the MCP app)', () => {
         'Content-Type': 'application/json',
         Accept: 'application/json, text/event-stream',
         Authorization: 'Bearer caller-bearer',
+        'User-Agent': 'claude-ai/1.2.3',
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -70,5 +71,8 @@ describe('per-request token forwarding (E2E through the MCP app)', () => {
     expect(apiCall, 'expected an outbound /me/v2/family call').toBeTruthy();
     const headers = (apiCall![1] as RequestInit).headers as Record<string, string>;
     expect(headers.Authorization).toBe('Bearer user-token-xyz');
+    // Usage-attribution headers forwarded to kinnectd-api.
+    expect(headers['X-MCP-Tool']).toBe('get_family_members');
+    expect(headers['X-MCP-Client']).toBe('claude-ai/1.2.3');
   });
 });

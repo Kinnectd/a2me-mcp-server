@@ -51,11 +51,19 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
 
   app.post(MCP_PATH, requireBearer, async (req: Request, res: Response) => {
     const a2meToken = (res.locals.a2meToken as string | undefined) ?? '';
+    // Attribution forwarded to kinnectd-api alongside each tool's API call:
+    // - tool: the tools/call target name — the request path alone can't identify the tool (tools
+    //   share endpoints). Only set for tools/call (not initialize / tools/list).
+    // - client: the calling assistant. Stateless transport doesn't carry MCP clientInfo onto tool
+    //   calls, so use the request User-Agent (the per-request client signal).
+    const body = req.body as { method?: string; params?: { name?: string } } | undefined;
+    const mcpTool = body?.method === 'tools/call' ? body.params?.name : undefined;
+    const mcpClient = req.get('user-agent') ?? undefined;
     // Run the whole request inside the user's context (and await it) so AsyncLocalStorage stays
     // active through transport.handleRequest and the tool handlers. The previous
     // `run(() => next())` exited the context the moment next() returned — before any async tool
     // work ran — so the API client saw an empty store and fell back to the static dev token.
-    await requestContext.run({ a2meToken }, async () => {
+    await requestContext.run({ a2meToken, mcpTool, mcpClient }, async () => {
       // Stateless mode: a fresh server + transport per request avoids cross-client state leakage.
       const server = createServer();
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
