@@ -13,6 +13,29 @@ import {
 const MCP_PATH = '/mcp';
 
 /**
+ * Sanitizes a value before it's forwarded as an outbound request header. Strips control characters
+ * (header-injection / `fetch` header-validation errors) and caps length so a hostile or oversized
+ * `User-Agent` / tool name can't bloat the outbound headers (proxy 431/400). Returns undefined when
+ * nothing usable remains. kinnectd-api normalizes again for storage; this is the boundary defense.
+ */
+export function sanitizeForwardedHeader(
+  raw: string | undefined,
+  maxLength: number,
+): string | undefined {
+  if (!raw) return undefined;
+  const cleaned = Array.from(raw)
+    // Drop C0 control chars + DEL (header-injection / fetch header-validation), then cap.
+    .filter((ch) => {
+      const code = ch.charCodeAt(0);
+      return code > 0x1f && code !== 0x7f;
+    })
+    .join('')
+    .trim()
+    .slice(0, maxLength);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+/**
  * Builds the remote (Streamable HTTP) MCP app: it serves the OAuth protected-resource metadata,
  * gates the MCP endpoint behind a bearer-token check (via the swappable TokenVerifier), and
  * mounts the MCP transport. The verifier is injectable for testing.
@@ -57,8 +80,9 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
     // - client: the calling assistant. Stateless transport doesn't carry MCP clientInfo onto tool
     //   calls, so use the request User-Agent (the per-request client signal).
     const body = req.body as { method?: string; params?: { name?: string } } | undefined;
-    const mcpTool = body?.method === 'tools/call' ? body.params?.name : undefined;
-    const mcpClient = req.get('user-agent') ?? undefined;
+    const mcpTool =
+      body?.method === 'tools/call' ? sanitizeForwardedHeader(body.params?.name, 128) : undefined;
+    const mcpClient = sanitizeForwardedHeader(req.get('user-agent'), 256);
     // Run the whole request inside the user's context (and await it) so AsyncLocalStorage stays
     // active through transport.handleRequest and the tool handlers. The previous
     // `run(() => next())` exited the context the moment next() returned — before any async tool
