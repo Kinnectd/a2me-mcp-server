@@ -84,23 +84,31 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-/** Privacy: render a date as month-day only (never the year). */
-function monthDayOf(d: Date): string {
-  return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+/** UTC midnight (epoch ms) of a date — strips time-of-day so day math is stable across timezones. */
+function utcDayStart(d: Date): number {
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
-/** Whole days from now until the next occurrence of a recurring MM-DD (this year or next). */
+/** Privacy: render a date as month-day only (never the year). UTC so an ISO instant near midnight
+ * doesn't shift a day with the server's local offset. */
+function monthDayOf(d: Date): string {
+  return `${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
+/** Whole days from today until the next occurrence of a recurring MM-DD (today → 0, never ~365).
+ * Date-only in UTC so the count is stable and same-day is correct. */
 function daysUntilMonthDay(monthDay: string): number {
   const now = new Date();
+  const today = utcDayStart(now);
   const [month, day] = monthDay.split('-').map(Number);
-  const target = new Date(now.getFullYear(), month - 1, day);
-  if (target < now) target.setFullYear(target.getFullYear() + 1);
-  return Math.ceil((target.getTime() - now.getTime()) / MS_PER_DAY);
+  let target = Date.UTC(now.getUTCFullYear(), month - 1, day);
+  if (target < today) target = Date.UTC(now.getUTCFullYear() + 1, month - 1, day);
+  return Math.round((target - today) / MS_PER_DAY);
 }
 
-/** Whole days from now until a concrete date. */
+/** Whole days from today (UTC date-only) until a concrete date — later-today → 0, not 1. */
 function daysUntilDate(target: Date): number {
-  return Math.ceil((target.getTime() - new Date().getTime()) / MS_PER_DAY);
+  return Math.round((utcDayStart(target) - utcDayStart(new Date())) / MS_PER_DAY);
 }
 
 function displayNameOf(u: ApiUserDTO): string {
@@ -138,7 +146,9 @@ function toFamilyActivity(post: ApiPostDTO): FamilyActivity {
   if (content) {
     summary = truncate(content);
   } else if (mediaCount > 0) {
-    const noun = type === 'video' ? 'video' : 'photo';
+    // type is photo/video only when media of that kind is present; otherwise (audio/unknown) stay
+    // generic rather than mislabel an attachment as a photo.
+    const noun = type === 'video' ? 'video' : type === 'photo' ? 'photo' : 'attachment';
     summary = `Shared ${mediaCount} ${noun}${mediaCount > 1 ? 's' : ''}.`;
   } else {
     summary = 'Posted an update.';

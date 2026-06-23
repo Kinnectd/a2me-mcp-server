@@ -36,6 +36,10 @@ function normalizeQuery(query: string): string {
 
 function scoreMatch(member: ResolverMember, query: string): number {
   const normalized = normalizeQuery(query);
+  // Live family labels are typically title-cased ("Parent", "Mother"); the mock's are lowercase.
+  // Compare on a lowercased label (and use it for alias lookup) so matching works either way —
+  // results still carry the member's original label.
+  const label = member.relationshipLabel.toLowerCase();
 
   // Exact name match
   if (member.displayName.toLowerCase() === normalized) return 1.0;
@@ -45,17 +49,17 @@ function scoreMatch(member: ResolverMember, query: string): number {
   if (firstName === normalized) return 0.95;
 
   // Relationship label exact match
-  if (member.relationshipLabel === normalized) return 0.9;
+  if (label === normalized) return 0.9;
 
   // Relationship alias match
-  const aliases = RELATIONSHIP_ALIASES[member.relationshipLabel] || [];
+  const aliases = RELATIONSHIP_ALIASES[label] || [];
   if (aliases.some((a) => a === query.toLowerCase().trim())) return 0.9;
 
   // Partial name match
   if (member.displayName.toLowerCase().includes(normalized)) return 0.7;
 
   // Partial relationship match
-  if (member.relationshipLabel.includes(normalized)) return 0.6;
+  if (label.includes(normalized)) return 0.6;
 
   return 0;
 }
@@ -103,11 +107,13 @@ export function resolvePersonReference(
 export function resolveRelationshipReference(
   userId: string,
   label: string,
+  family: ResolverMember[] = mockFamilyMembers,
 ): FamilyMemberSearchResult {
   const normalized = normalizeQuery(label);
-  const members = mockFamilyMembers.filter((m) => m.personId !== userId);
+  const members = family.filter((m) => m.personId !== userId);
 
-  const directMatch = members.filter((m) => m.relationshipLabel === normalized);
+  // Labels may be title-cased in live data — compare lowercased (see scoreMatch).
+  const directMatch = members.filter((m) => m.relationshipLabel.toLowerCase() === normalized);
   if (directMatch.length > 0) {
     return {
       matches: directMatch.map((m) => ({
@@ -127,7 +133,7 @@ export function resolveRelationshipReference(
   // Check aliases
   for (const [relLabel, aliases] of Object.entries(RELATIONSHIP_ALIASES)) {
     if (aliases.some((a) => normalizeQuery(a) === normalized || a === label.toLowerCase().trim())) {
-      const aliasMatches = members.filter((m) => m.relationshipLabel === relLabel);
+      const aliasMatches = members.filter((m) => m.relationshipLabel.toLowerCase() === relLabel);
       if (aliasMatches.length > 0) {
         return {
           matches: aliasMatches.map((m) => ({

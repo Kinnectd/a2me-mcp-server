@@ -98,6 +98,30 @@ describe('A2MeApiClient live tool paths', () => {
     expect(dates[0].daysUntil).toBeLessThanOrEqual(dates[dates.length - 1].daysUntil);
   });
 
+  it('getUpcomingDates reports a birthday today as 0 days away (not ~365)', async () => {
+    const now = new Date();
+    const todayMonthDay = `${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(
+      now.getUTCDate(),
+    ).padStart(2, '0')}`;
+    routeFetch([
+      [
+        /\/me\/v2\/family/,
+        () => ({
+          viewerUserId: USER,
+          members: [familyMember({ birthDate: `1990-${todayMonthDay}` })],
+        }),
+      ],
+      [/\/events/, () => ({ content: [] })],
+    ]);
+
+    const { A2MeApiClient } = await import('../../src/client/a2me-api-client.js');
+    const client = new A2MeApiClient('http://test.local/api', 'tok');
+    const dates = await client.getUpcomingDates(USER, 30);
+    const birthday = dates.find((d) => d.type === 'birthday');
+    expect(birthday).toBeDefined();
+    expect(birthday!.daysUntil).toBe(0);
+  });
+
   it('getUpcomingDates filters out dates beyond daysAhead', async () => {
     const far = new Date(Date.now() + 200 * 86400000);
     routeFetch([

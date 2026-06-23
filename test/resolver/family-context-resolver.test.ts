@@ -10,6 +10,30 @@ import {
 describe('family-context-resolver', () => {
   const userId = 'user-001';
 
+  // Live family labels come back title-cased ("Parent", "Mother"); matching must still work.
+  describe('title-cased (live) relationship labels', () => {
+    const liveFamily = [
+      { personId: 'p1', displayName: 'Linda Doe', relationshipLabel: 'Mother' },
+      { personId: 'p2', displayName: 'Robert Doe', relationshipLabel: 'Father' },
+    ];
+
+    it('matches an alias ("mom") against a title-cased label', () => {
+      const result = resolvePersonReference(userId, 'mom', liveFamily);
+      expect(result.matches[0]?.displayName).toBe('Linda Doe');
+      expect(result.matches[0]?.relationshipLabel).toBe('Mother'); // original label preserved
+    });
+
+    it('matches the relationship word ("father") against a title-cased label', () => {
+      const result = resolvePersonReference(userId, 'father', liveFamily);
+      expect(result.matches[0]?.displayName).toBe('Robert Doe');
+    });
+
+    it('resolveRelationshipReference matches a title-cased label via alias', () => {
+      const result = resolveRelationshipReference(userId, 'dad', liveFamily);
+      expect(result.matches[0]?.displayName).toBe('Robert Doe');
+    });
+  });
+
   describe('resolvePersonReference', () => {
     it('resolves by exact first name', () => {
       const result = resolvePersonReference(userId, 'Sarah');
