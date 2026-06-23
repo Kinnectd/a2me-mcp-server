@@ -43,20 +43,29 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
         .json({ error: 'unauthorized' });
       return;
     }
-    // Enter the user's context for the rest of the request so the API client forwards their token.
-    requestContext.run({ a2meToken: principal.token }, () => next());
+    // Stash the verified token on the request; the MCP route below enters the user's async context
+    // around the entire handler (not just next()) so the API client can forward it.
+    (req as Request & { a2meToken?: string }).a2meToken = principal.token;
+    next();
   };
 
   app.post(MCP_PATH, requireBearer, async (req: Request, res: Response) => {
-    // Stateless mode: a fresh server + transport per request avoids cross-client state leakage.
-    const server = createServer();
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on('close', () => {
-      void transport.close();
-      void server.close();
+    const a2meToken = (req as Request & { a2meToken?: string }).a2meToken ?? '';
+    // Run the whole request inside the user's context (and await it) so AsyncLocalStorage stays
+    // active through transport.handleRequest and the tool handlers. The previous
+    // `run(() => next())` exited the context the moment next() returned — before any async tool
+    // work ran — so the API client saw an empty store and fell back to the static dev token.
+    await requestContext.run({ a2meToken }, async () => {
+      // Stateless mode: a fresh server + transport per request avoids cross-client state leakage.
+      const server = createServer();
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      res.on('close', () => {
+        void transport.close();
+        void server.close();
+      });
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body as unknown);
     });
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body as unknown);
   });
 
   return app;
