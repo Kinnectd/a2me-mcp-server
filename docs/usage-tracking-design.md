@@ -1,7 +1,8 @@
 # MCP usage tracking — design proposal
 
 Goal (Byron, 2026-06-23): capture MCP ("Connect a2me") usage and surface it two ways —
-1. **Admin console** — simple counts *and* detailed data (which user, when, which tool, which client).
+
+1. **Admin console** — simple counts _and_ detailed data (which user, when, which tool, which client).
 2. **User-facing** — so a user can see their account was accessed via the MCP server, ideally with
    "via Claude" detail.
 
@@ -14,25 +15,38 @@ read endpoints), `kinnectd-admin-console` (display), and the web/mobile apps (us
 ## Where usage is observable (the capture point)
 
 `McpTokenAuthenticationFilter` (kinnectd-api) runs on **every** MCP request and already knows:
+
 - the **user** (resolved a2me user) — `McpAuthenticationToken.user`,
-- the **endpoint/path** (`/me/v2/family`, `/posts/feed`, …) → maps to a **tool**,
+- the **endpoint/path** (`/me/v2/family`, `/posts/feed`, …),
 - the HTTP method, timestamp, request IP / `User-Agent`,
 - the token **scopes**.
 
 So the filter (on successful auth) is the natural single capture point — every MCP-served request
 flows through it, and nothing else needs to change per-endpoint.
 
-### Getting the "via Claude" detail
+> **The path does NOT identify the tool.** Several MCP tools resolve over the same few kinnectd-api
+> endpoints (e.g. `find_family_member`, `get_message_context_for_person`, and `get_person_profile`
+> all read `/me/v2/family`), some tools make **multiple** calls, and some make **none**. So the
+> **tool name must be forwarded explicitly by the MCP server** (see below), not inferred from the
+> URL — otherwise per-tool attribution is wrong and a couple of tools never appear at all.
 
-The Scalekit access token doesn't say "Claude." The **MCP client identity** is known on the
-**a2me-mcp-server** side, two places:
-1. The MCP `initialize` request includes `clientInfo { name, version }` (e.g. `name: "claude-ai"`).
-2. The HTTP `User-Agent` of the MCP client.
+### Getting the "via Claude" and per-tool detail
 
-**Recommendation:** the a2me-mcp-server forwards a small header (e.g. `X-MCP-Client: claude-ai/1.x`)
-on every kinnectd-api call, derived from the connection's `clientInfo` (fallback: User-Agent). The
-api records it. That gives "via Claude" end-to-end without parsing tokens. (Capture the connection's
-`clientInfo` at `initialize` and stash it in the per-request `requestContext` next to `a2meToken`.)
+The Scalekit access token says nothing about the client or the tool. Both are known on the
+**a2me-mcp-server** side, so the server should **forward them as request headers** on each
+kinnectd-api call (and the api records them):
+
+- **`X-MCP-Client`** — the calling assistant, from the MCP `initialize` `clientInfo { name, version }`
+  (e.g. `claude-ai/1.x`); fall back to `User-Agent`. Captured at `initialize` and stashed in the
+  per-request `requestContext` next to `a2meToken`. This is the "via Claude" detail.
+- **`X-MCP-Tool`** — the tool being executed (e.g. `get_family_members`), set by the server in the
+  tool-dispatch path. This is the **only reliable** tool identifier (vs. inferring from the path).
+
+> **Treat both as untrusted, client-controlled strings.** `clientInfo`/`User-Agent` come from the
+> client. Before persisting/displaying: **cap length** (e.g. 100 chars), **allowlist characters**
+> (strip control chars / HTML), and **never store the raw `User-Agent`** verbatim — to avoid log and
+> stored-XSS injection in the admin/user UIs. `X-MCP-Tool` should be validated against the known
+> tool-name set and dropped if unrecognized.
 
 ---
 
@@ -43,23 +57,23 @@ A dedicated, append-only access log — small, query-friendly, and decoupled fro
 
 `mcp_access_log` (kinnectd-db migration + `kinnectd-core` entity `McpAccessLog`):
 
-| column | notes |
-|---|---|
-| `id` (uuid, pk) | |
-| `user_id` (uuid, fk users) | the accessed account |
-| `occurred_at` (timestamptz) | |
-| `endpoint` (text) | request path, e.g. `/me/v2/family` |
-| `tool` (text) | derived label, e.g. `get_family_members` (path→tool map) |
-| `method` (text) | always GET in read-only v1 |
-| `client_name` (text, null) | from `X-MCP-Client` — e.g. `claude-ai` |
-| `client_version` (text, null) | |
-| `ip` (inet/text, null) | |
-| `scopes` (text, null) | e.g. `family:read` |
-| `status` (int, null) | response status if we record post-hoc; optional |
+| column                        | notes                                                                                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id` (uuid, pk)               |                                                                                                                                                           |
+| `user_id` (uuid, fk users)    | the accessed account                                                                                                                                      |
+| `occurred_at` (timestamptz)   |                                                                                                                                                           |
+| `endpoint` (text)             | request path, e.g. `/me/v2/family`                                                                                                                        |
+| `tool` (text, null)           | the MCP tool name, from `X-MCP-Tool` (forwarded by the server — **not** inferred from the path; tools share endpoints). Null if a future caller omits it. |
+| `method` (text)               | always GET in read-only v1                                                                                                                                |
+| `client_name` (text, null)    | from `X-MCP-Client`, normalized (length-capped, char-allowlisted) — e.g. `claude-ai`                                                                      |
+| `client_version` (text, null) | normalized                                                                                                                                                |
+| `ip` (inet/text, null)        |                                                                                                                                                           |
+| `scopes` (text, null)         | e.g. `family:read`                                                                                                                                        |
+| `status` (int, null)          | response status — only if captured post-handler (see below), not from the auth filter                                                                     |
 
 Indexes: `(user_id, occurred_at desc)`, `(occurred_at)`, `(tool)`.
 
-> Why a dedicated log, not extending `UserSession`: MCP access is *per-call*, high-cardinality, and
+> Why a dedicated log, not extending `UserSession`: MCP access is _per-call_, high-cardinality, and
 > append-only; sessions are coarse login records. We can still derive a "connected app" summary for
 > the user-facing view by aggregating this log (latest access per client).
 
@@ -68,19 +82,28 @@ Indexes: `(user_id, occurred_at desc)`, `(occurred_at)`, `(tool)`.
 ## Capture mechanics (don't slow the request)
 
 Write **asynchronously** so the filter never adds DB latency to a user's tool call:
+
 - On successful MCP auth, publish a lightweight Spring `ApplicationEvent`
-  (`McpAccessEvent(userId, endpoint, tool, client, ip, scopes, occurredAt)`).
+  (`McpAccessEvent(userId, endpoint, tool, client, ip, scopes, occurredAt)`), reading `tool`/`client`
+  from the forwarded `X-MCP-Tool` / `X-MCP-Client` headers (normalized).
 - An `@Async`/`@EventListener` (or a tiny service on the existing async executor) persists it.
 - MCP traffic is low-volume, so a direct async insert is fine for v1 (no Cloud Task needed).
 
-Path→tool mapping lives next to `READ_ONLY_PATHS` in the filter (single source of truth, kept in
-sync with a2me-mcp-server's tools).
+Because the tool name is forwarded by the server, the api records it directly — there's **no
+path→tool map to maintain** in the filter (which would otherwise duplicate, and drift from, the
+server's tool list).
+
+> **On `status`:** the auth filter runs _before_ the handler, so the response status isn't known
+> there. If status is wanted, capture it post-handler (a small response-wrapping filter / interceptor
+> on the MCP paths) rather than in the auth filter. It's optional for v1 — the access record is
+> already useful without it.
 
 ---
 
 ## Admin console
 
 Read endpoints in kinnectd-api (admin-guarded, mirroring existing admin/analytics patterns):
+
 - **Counts:** total requests, unique users, requests-by-tool, requests-by-day (date-bucketed),
   active connected clients. (`GET /admin/mcp/usage/summary?from&to`)
 - **Detail:** paged log — user, when, tool, client, ip. (`GET /admin/mcp/usage?user&tool&from&to&page`)
@@ -93,8 +116,9 @@ a filterable detail table. Reuse the console's existing table/chart components.
 ## User-facing ("your account was accessed via Claude")
 
 Surface per-user MCP access in the user's **security / connected-access** area. Two cohesive options:
+
 - **Fold into existing Sessions/Security UI** (if there's an "active sessions / recent activity"
-  screen) as entries like *"Accessed via Claude (MCP) — Jun 23, 2:14pm"*.
+  screen) as entries like _"Accessed via Claude (MCP) — Jun 23, 2:14pm"_.
 - **A dedicated "Connected apps" screen** (aligns with the roadmap's P3 "Connected apps settings +
   revoke + scopes"): list each connected client (Claude/ChatGPT), last access, what it can read
   (`family:read`), and a future **Revoke** action.
@@ -107,7 +131,8 @@ Read endpoint: `GET /me/mcp-access?page` (the user's own log) and/or `GET /me/co
 ## Recommended phasing
 
 - **Phase A — Capture:** db migration + core `McpAccessLog` + async capture in the filter +
-  a2me-mcp-server forwards `X-MCP-Client`. (Foundation; nothing visible yet.)
+  a2me-mcp-server forwards `X-MCP-Client` and `X-MCP-Tool` (normalized on the api side). (Foundation;
+  nothing visible yet.)
 - **Phase B — Admin:** summary + detail read endpoints + admin-console "MCP usage" page.
 - **Phase C — User-facing:** `/me` read endpoint + surface in security/connected-apps (web first,
   then mobile), wired toward future revoke.
