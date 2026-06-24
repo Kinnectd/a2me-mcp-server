@@ -1,4 +1,21 @@
+import {
+  createRemoteJWKSet,
+  decodeJwt,
+  jwtVerify,
+  type JWTPayload,
+  type JWTVerifyGetKey,
+} from 'jose';
 import { config } from '../config.js';
+
+/** A jose key source: a remote JWKS resolver, or a key (used in tests). */
+type KeyInput = Parameters<typeof jwtVerify>[1];
+
+/** Pulls granted scopes from the standard `scope` (space-delimited) or `scp` (array) claim. */
+function extractScopes(payload: JWTPayload): string[] {
+  if (typeof payload.scope === 'string') return payload.scope.split(' ').filter(Boolean);
+  if (Array.isArray(payload.scp)) return payload.scp.map(String);
+  return [];
+}
 
 /**
  * The authenticated caller behind an MCP request. Provider-agnostic by design — see
@@ -33,24 +50,74 @@ export class DevTokenVerifier implements TokenVerifier {
 }
 
 /**
- * Validates an access token issued by the managed provider (Scalekit). Not yet wired — needs the
- * issuer/JWKS/audience from the provider dashboard (see docs/auth-design.md "What Byron owns").
+ * Validates a JWT access token issued by Scalekit (the managed authorization server). Verifies the
+ * signature against the issuer's JWKS and checks `iss`, `aud`, and `exp`; an invalid/expired token
+ * resolves to null (→ 401 challenge). The JWKS URL is discovered from the issuer's authorization-
+ * server metadata, so only the issuer + audience need configuring.
  */
 export class ScalekitTokenVerifier implements TokenVerifier {
   readonly name = 'scalekit';
+  private keys?: KeyInput;
+  // The issuer the AS actually stamps on tokens, read from its published metadata. Scalekit
+  // advertises the *base* issuer (e.g. https://kinnectd.scalekit.dev) even though discovery and
+  // JWKS live under the per-resource URL in MCP_AUTH_ISSUER — so the `iss` claim must be checked
+  // against this, not the discovery URL, or every token is rejected.
+  private tokenIssuer?: string;
 
   constructor(
     private readonly issuer: string,
     private readonly audience: string,
-  ) {}
+    // Injectable key source for tests; production discovers a remote JWKS lazily.
+    keys?: KeyInput,
+  ) {
+    this.keys = keys;
+  }
 
-  async verify(_bearerToken: string): Promise<VerifiedPrincipal | null> {
-    // TODO(Phase 2): fetch JWKS from `${issuer}/.well-known/jwks.json`, verify the JWT signature,
-    // check iss/aud/exp, and map scopes. Until configured, fail loudly so we never silently accept.
-    throw new Error(
-      `ScalekitTokenVerifier not wired (issuer=${this.issuer || 'unset'}, aud=${this.audience || 'unset'}). ` +
-        'Set MCP_AUTH_PROVIDER=dev until Scalekit is configured.',
-    );
+  /** Lazily resolves (and caches) the JWKS + token issuer, discovering both from the AS metadata. */
+  private async resolveKeys(): Promise<KeyInput> {
+    if (this.keys) return this.keys;
+    if (!this.issuer) throw new Error('Scalekit issuer is not configured (MCP_AUTH_ISSUER)');
+    const res = await fetch(`${this.issuer}/.well-known/oauth-authorization-server`);
+    if (!res.ok) {
+      throw new Error(`Scalekit AS metadata fetch failed: ${res.status} ${res.statusText}`);
+    }
+    const meta = (await res.json()) as { jwks_uri?: string; issuer?: string };
+    if (!meta.jwks_uri) throw new Error('Scalekit AS metadata missing jwks_uri');
+    this.tokenIssuer = meta.issuer ?? this.issuer;
+    this.keys = createRemoteJWKSet(new URL(meta.jwks_uri));
+    return this.keys;
+  }
+
+  async verify(bearerToken: string): Promise<VerifiedPrincipal | null> {
+    if (!bearerToken) return null;
+    try {
+      const keys = await this.resolveKeys();
+      const { payload } = await jwtVerify(bearerToken, keys as JWTVerifyGetKey, {
+        issuer: this.tokenIssuer ?? this.issuer,
+        audience: this.audience,
+      });
+      return { token: bearerToken, scopes: extractScopes(payload) };
+    } catch (err) {
+      // Bad signature / wrong iss-aud / expired / malformed. The 401 response stays generic, but
+      // log the reason server-side so a misconfig (iss/aud) is diagnosable from the logs.
+      console.warn(`[scalekit] token rejected: ${err instanceof Error ? err.message : String(err)}`);
+      // Opt-in diagnostic (MCP_DEBUG_TOKENS=true): decode WITHOUT verifying to surface what the token
+      // carries vs what we expect, so an aud/iss/claim mismatch is obvious. Identifiers only — never
+      // the token, the email, or the sub value.
+      if (config.debugTokens) {
+        try {
+          const claims = decodeJwt(bearerToken);
+          console.warn(
+            `[scalekit] token claims: aud=${JSON.stringify(claims.aud)} iss=${JSON.stringify(claims.iss)} ` +
+              `hasEmail=${claims.email != null} emailVerified=${JSON.stringify(claims.email_verified)} ` +
+              `| expected aud=${JSON.stringify(this.audience)} iss=${JSON.stringify(this.tokenIssuer ?? this.issuer)}`,
+          );
+        } catch {
+          // Not even a decodable JWT — nothing useful to add.
+        }
+      }
+      return null;
+    }
   }
 }
 

@@ -66,6 +66,29 @@ describe('A2MeApiClient.getFamilyMembers (live path)', () => {
     ]);
   });
 
+  it('forwards the per-request token from requestContext over the constructor token', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ viewerUserId: 'u0', members: [] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { A2MeApiClient } = await import('../../src/client/a2me-api-client.js');
+    const { requestContext } = await import('../../src/request-context.js');
+    const client = new A2MeApiClient('http://test.local/api', 'constructor-token');
+
+    await requestContext.run({ a2meToken: 'per-request-token' }, async () => {
+      await client.getFamilyMembers('u0');
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer per-request-token' }),
+      }),
+    );
+  });
+
   it('falls back to genderedLabel when neutralLabel is missing (never empty)', async () => {
     const fetchMock = vi.fn(
       async () =>

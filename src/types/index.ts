@@ -14,6 +14,17 @@ export interface FamilyMember {
   isLegacyAccount: boolean;
 }
 
+/**
+ * A family member enriched with the non-sensitive context fields used to compose profiles and
+ * message/birthday-card suggestions (interests + a short bio). Kept internal to the data layer —
+ * the public `get_family_members` tool still returns the redacted {@link FamilyMember}. Never
+ * carries contact info (email/phone/address) or a birth year.
+ */
+export interface FamilyMemberDetail extends FamilyMember {
+  interests: string[];
+  bioSummary: string | null;
+}
+
 export interface FamilyDate {
   date: string;
   type: 'birthday' | 'anniversary' | 'event';

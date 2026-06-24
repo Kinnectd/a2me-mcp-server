@@ -45,6 +45,14 @@ npm run format       # prettier --write .
 
 ## Repo conventions
 
-- This repo uses **`main`** as its default branch (no dev/prod env split yet). Target PRs at
-  `main` unless told otherwise.
+- **Branching — environment-as-branch (matches the rest of a2me):** `dev` = dev environment,
+  `main` = production. Feature branches → PR to **`dev`** (the default branch); promote `dev` → `main`
+  for prod releases. Never PR a feature branch straight to `main`.
+  - **Dev:** `dev.mcp.a2me.app` · Scalekit **Kinnectd Dev** env (issuer
+    `https://kinnectd.scalekit.dev/resources/res_130696843431510786`) · `dev.api.kinnectd.com`.
+  - **Prod:** `mcp.a2me.app` · a Scalekit **Kinnectd Prod** env (separate server to register;
+    same name `a2me-mcp-server` is fine — envs are isolated) · `api.kinnectd.com`.
+  - The branch→environment **deploy pipeline (Cloud Run + GitHub Actions) is not wired yet**; until
+    it is, branches don't auto-deploy. Set per-env values via env vars (`MCP_PUBLIC_URL`,
+    `MCP_AUTH_ISSUER`, `MCP_AUTH_AUDIENCE`, `A2ME_API_URL`).
 - Any future credentials must come from env/secret stores — never commit tokens.
