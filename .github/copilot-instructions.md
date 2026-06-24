@@ -7,8 +7,8 @@ privacy-redacted family-context tools** to LLM assistants (Claude, ChatGPT, and 
 KAI assistant). It lets an assistant answer questions like "when is mom's birthday?" or "help me
 write a message to grandma" using A2Me family data — without exposing sensitive details.
 
-**Status: experimental / spike.** Auth and the A2Me API are currently **mocked**; the intended
-future state is real OAuth/Firebase auth + live A2Me API calls.
+**Status: live (v1, read-only).** Production is hosted at `mcp.a2me.app` with Scalekit OAuth and
+live A2Me API calls. **Mock mode** (`A2ME_USE_MOCK=true`) remains the default for local dev.
 
 ## Stack
 
@@ -52,7 +52,8 @@ npm run format       # prettier --write .
     `https://kinnectd.scalekit.dev/resources/res_130696843431510786`) · `dev.api.kinnectd.com`.
   - **Prod:** `mcp.a2me.app` · a Scalekit **Kinnectd Prod** env (separate server to register;
     same name `a2me-mcp-server` is fine — envs are isolated) · `api.kinnectd.com`.
-  - The branch→environment **deploy pipeline (Cloud Run + GitHub Actions) is not wired yet**; until
-    it is, branches don't auto-deploy. Set per-env values via env vars (`MCP_PUBLIC_URL`,
-    `MCP_AUTH_ISSUER`, `MCP_AUTH_AUDIENCE`, `A2ME_API_URL`).
+  - **Deploy:** dev auto-deploys on push to `dev`; prod is released via `create-tag.yml`
+    (environment=`prod`) → Cloud Run, through the shared `kinnectd-workflows` `deploy-service.yml`.
+    Per-env values (`MCP_PUBLIC_URL`, `MCP_AUTH_ISSUER`, `MCP_AUTH_AUDIENCE`, `A2ME_API_URL`) are
+    set there.
 - Any future credentials must come from env/secret stores — never commit tokens.

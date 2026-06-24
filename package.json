@@ -1,7 +1,7 @@
 {
   "name": "a2me-mcp-server",
-  "version": "0.1.0",
-  "description": "Experimental MCP server exposing read-only A2Me family context tools",
+  "version": "1.0.0",
+  "description": "MCP server exposing read-only A2Me family-context tools for AI assistants",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -20,8 +20,13 @@
     "family",
     "context"
   ],
-  "author": "Kinnectd",
-  "license": "UNLICENSED",
+  "author": "Kinnectd LLC",
+  "license": "MIT",
+  "homepage": "https://a2me.app/features/ai-integration",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kinnectd/a2me-mcp-server.git"
+  },
   "private": true,
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
