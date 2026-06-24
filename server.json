@@ -1,7 +1,7 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.kinnectd/a2me-mcp-server",
-  "description": "Read-only A2Me family-context tools for AI assistants — query your family members, upcoming dates, recent activity, profiles, and relationships. OAuth-gated and read-only.",
+  "description": "Read-only A2Me family context tools for AI assistants (members, dates, activity, relationships)",
   "repository": {
     "url": "https://github.com/Kinnectd/a2me-mcp-server",
     "source": "github"
