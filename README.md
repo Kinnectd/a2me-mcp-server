@@ -1,17 +1,27 @@
 # A2Me MCP Server
 
-> ⚠️ **EXPERIMENTAL** — This is a research/spike project. Not production ready. Do not deploy to production environments.
+> **v1 · read-only.** A [Model Context Protocol](https://modelcontextprotocol.io) server that exposes **read-only, privacy-redacted** family-context tools for the [A2Me](https://a2me.app) family social platform — so assistants like Claude, ChatGPT, or KAI can answer "when is mom's birthday?" or help write a message to grandma, scoped to your own family.
 
-A Model Context Protocol (MCP) server that exposes read-only family context tools for the A2Me family social platform. Designed to be consumed by LLM-powered assistants (like Claude, ChatGPT, or KAI) to provide family-aware, privacy-conscious context.
+Hosted at **`https://mcp.a2me.app/mcp`** and used in production for A2Me's [Connect a2me](https://a2me.app/features/ai-integration) feature.
 
-## Quick Start
+## Connect from an AI assistant
+
+In Claude or ChatGPT, add a **custom connector** using the URL:
+
+```
+https://mcp.a2me.app/mcp
+```
+
+You'll be sent through OAuth to sign in to A2Me and grant **read-only** access; the assistant then has family-aware context scoped to your account.
+
+## Run it locally
 
 ```bash
 npm install
-npm run dev
+npm run dev        # stdio transport, mock data by default
 ```
 
-The server runs on **stdio transport** (standard for MCP servers).
+It runs on **stdio** by default (for local MCP clients) and supports a remote **HTTP** transport (`MCP_TRANSPORT=http`) for the hosted deployment. By default it uses **mock data** (`A2ME_USE_MOCK=true`); set `A2ME_API_URL` + `A2ME_USE_MOCK=false` to call a real API. See [`.env.example`](./.env.example).
 
 ## Available Tools
 
