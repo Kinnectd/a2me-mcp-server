@@ -1,5 +1,16 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { completable } from '@modelcontextprotocol/sdk/server/completable.js';
 import { z } from 'zod';
+import { completePersonReference } from '../completions.js';
+
+/**
+ * A "who" prompt argument that autocompletes from the caller's family roster
+ * (names + relationship labels) as they type. MCP argument completion is supported for
+ * prompt arguments (`ref/prompt`), so this is where it belongs.
+ */
+function personArg(describe: string) {
+  return completable(z.string().describe(describe), completePersonReference);
+}
 
 /**
  * MCP prompts — one-click starting points that surface in the assistant's UI
@@ -21,11 +32,9 @@ export function registerPrompts(server: McpServer): void {
       title: 'Write a birthday card',
       description: 'Draft a heartfelt birthday card for a family member, grounded in A2Me context.',
       argsSchema: {
-        person: z
-          .string()
-          .describe(
-            'Who the card is for — a name or relationship (e.g. "my sister", "Grandma Ruth")',
-          ),
+        person: personArg(
+          'Who the card is for — a name or relationship (e.g. "my sister", "Grandma Ruth")',
+        ),
       },
     },
     ({ person }) =>
@@ -44,7 +53,7 @@ export function registerPrompts(server: McpServer): void {
       title: 'Write a message to family',
       description: 'Draft a thoughtful message to a family member for any occasion.',
       argsSchema: {
-        person: z.string().describe('Who the message is for — a name or relationship'),
+        person: personArg('Who the message is for — a name or relationship'),
         occasion: z
           .string()
           .optional()
@@ -100,7 +109,7 @@ export function registerPrompts(server: McpServer): void {
       title: 'Tell me about a family member',
       description: "Get a warm summary of a family member and how you're related.",
       argsSchema: {
-        person: z.string().describe('Who to look up — a name or relationship'),
+        person: personArg('Who to look up — a name or relationship'),
       },
     },
     ({ person }) =>

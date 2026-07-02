@@ -4,6 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { UpcomingDates } from '../../widgets/src/upcoming-dates/UpcomingDates.js';
 import { FamilyMembers } from '../../widgets/src/family-members/FamilyMembers.js';
+import { PersonProfile } from '../../widgets/src/person-profile/PersonProfile.js';
+import { RecentActivity } from '../../widgets/src/recent-activity/RecentActivity.js';
 
 // The widgets read their data from window.openai.toolOutput (the tool's structuredContent).
 function setToolOutput(output: unknown): void {
@@ -82,5 +84,58 @@ describe('FamilyMembers widget', () => {
     expect(text).toContain('Your family');
     expect(text).toContain('Sarah Walker');
     expect(text).toContain('sister');
+  });
+});
+
+describe('PersonProfile widget', () => {
+  it('renders name, relationship, interests, and bio', () => {
+    setToolOutput({
+      profile: {
+        personId: 'p2',
+        displayName: 'Linda Walker',
+        relationshipLabel: 'mother',
+        birthdayMonthDay: 'July 15',
+        bioSummary: 'Loves gardening and jazz.',
+        knownInterests: ['Gardening', 'Jazz'],
+        importantDates: [{ label: 'Anniversary', date: 'June 2' }],
+        recentActivitySummary: 'Shared photos from the garden.',
+      },
+    });
+    const text = render(<PersonProfile />);
+    expect(text).toContain('Linda Walker');
+    expect(text).toContain('mother');
+    expect(text).toContain('Gardening');
+    expect(text).toContain('Loves gardening and jazz.');
+  });
+
+  it('shows a not-found state when profile is null', () => {
+    setToolOutput({ profile: null });
+    const text = render(<PersonProfile />);
+    expect(text).toContain("Couldn't find that person");
+  });
+});
+
+describe('RecentActivity widget', () => {
+  it('renders activity rows with author and summary', () => {
+    setToolOutput({
+      recentActivity: [
+        {
+          activityId: 'a1',
+          type: 'photo',
+          authorDisplayName: 'Sarah Walker',
+          createdAt: new Date().toISOString(),
+          summary: 'Posted 3 new photos',
+          mediaCount: 3,
+          visibility: 'FAMILY',
+        },
+      ],
+      sinceHours: 72,
+      totalCount: 1,
+    });
+    const text = render(<RecentActivity />);
+    expect(text).toContain('Recent family activity');
+    expect(text).toContain('Sarah Walker');
+    expect(text).toContain('Posted 3 new photos');
+    expect(text).toContain('3 media');
   });
 });

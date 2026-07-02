@@ -51,7 +51,10 @@ knowing tool names. Each steers the assistant to the read-only tools above:
 | `upcoming_family_dates` | List upcoming birthdays/anniversaries with suggestions |
 | `about_person`          | Warm summary of a family member and how you're related |
 
-See [`src/prompts/index.ts`](src/prompts/index.ts).
+The `person` argument on these prompts **autocompletes from your family roster**
+(names + relationship labels) as you type — MCP argument completion, scoped to your
+family. See [`src/prompts/index.ts`](src/prompts/index.ts) and
+[`src/completions.ts`](src/completions.ts).
 
 ## Example Scenarios
 
@@ -133,11 +136,13 @@ Currently uses **mock authentication** — always returns an authenticated user 
 
 ## ChatGPT app widgets
 
-For ChatGPT (Apps SDK), two tools render an interactive inline widget instead of
+For ChatGPT (Apps SDK), four tools render an interactive inline widget instead of
 plain JSON:
 
 - `get_upcoming_family_dates` → an **Upcoming family dates** card
 - `get_family_members` → a **Your family** roster
+- `get_person_profile` → a **Family member** profile card
+- `get_recent_family_activity` → a **Recent family activity** feed
 
 Each widget is a small React bundle in [`widgets/src/`](widgets/src) built by
 `npm run build:widgets` into `dist-widgets/<name>.js|.css`. The server serves those as

@@ -15,19 +15,19 @@ export async function getRecentFamilyActivity(
   const client = new A2MeApiClient(config.a2meApiUrl, config.a2meAuthToken);
   const activities = await client.getRecentActivity(auth.userId, input.sinceHours, input.limit);
 
+  const structuredContent = {
+    recentActivity: activities,
+    sinceHours: input.sinceHours,
+    totalCount: activities.length,
+  };
+
   return {
+    // structuredContent drives the ChatGPT activity-feed widget.
+    structuredContent,
     content: [
       {
         type: 'text' as const,
-        text: JSON.stringify(
-          {
-            recentActivity: activities,
-            sinceHours: input.sinceHours,
-            totalCount: activities.length,
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(structuredContent, null, 2),
       },
     ],
   };

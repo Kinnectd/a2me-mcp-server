@@ -127,6 +127,7 @@ export function createServer(): McpServer {
         limit: z.number().min(1).max(100).optional().describe('Max results (default: 20)'),
       },
       annotations: { title: 'Get recent family activity', ...readOnlyExternal },
+      _meta: uiMeta('get_recent_family_activity'),
     },
     async (input) =>
       handle('recent family activity', () =>
@@ -143,6 +144,7 @@ export function createServer(): McpServer {
         "Returns a family member's profile with interests and recent activity. No private contact info.",
       inputSchema: { personId: z.string().min(1).describe('The person ID to look up') },
       annotations: { title: 'Get person profile', ...readOnlyExternal },
+      _meta: uiMeta('get_person_profile'),
     },
     async (input) => handle('person profile', () => getPersonProfile({ personId: input.personId })),
   );

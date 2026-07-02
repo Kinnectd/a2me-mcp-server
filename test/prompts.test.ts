@@ -36,6 +36,20 @@ describe('MCP prompts', () => {
     // Steers the assistant to the grounding tools.
     expect((text as { text: string }).text).toContain('get_birthday_card_context');
   });
+
+  it('completes the person argument from the family roster', async () => {
+    const client = await connectedClient();
+    const res = await client.complete({
+      ref: { type: 'ref/prompt', name: 'write_birthday_card' },
+      argument: { name: 'person', value: 'm' },
+    });
+    const values = res.completion.values;
+    expect(values.length).toBeGreaterThan(0);
+    // Every suggestion should match what was typed…
+    expect(values.every((v) => v.toLowerCase().includes('m'))).toBe(true);
+    // …and include relationship labels and/or names from the mock family.
+    expect(values).toContain('mother');
+  });
 });
 
 describe('handle() graceful errors', () => {

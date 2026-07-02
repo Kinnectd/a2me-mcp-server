@@ -33,3 +33,36 @@ export interface FamilyMembersOutput {
   familyMembers: FamilyMember[];
   totalCount: number;
 }
+
+export interface PersonProfile {
+  personId: string;
+  displayName: string;
+  relationshipLabel: string;
+  birthdayMonthDay: string | null;
+  bioSummary: string | null;
+  knownInterests: string[];
+  importantDates: { label: string; date: string }[];
+  recentActivitySummary: string | null;
+}
+
+/** structuredContent for `get_person_profile`. */
+export interface PersonProfileOutput {
+  profile: PersonProfile | null;
+}
+
+export interface FamilyActivity {
+  activityId: string;
+  type: 'post' | 'photo' | 'video' | 'birthday_card' | 'event';
+  authorDisplayName: string;
+  createdAt: string;
+  summary: string;
+  mediaCount: number;
+  visibility: string;
+}
+
+/** structuredContent for `get_recent_family_activity`. */
+export interface RecentActivityOutput {
+  recentActivity: FamilyActivity[];
+  sinceHours: number;
+  totalCount: number;
+}

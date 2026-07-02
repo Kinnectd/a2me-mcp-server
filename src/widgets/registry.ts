@@ -41,6 +41,22 @@ export const WIDGETS: WidgetDef[] = [
     invoking: 'Gathering your family',
     invoked: 'Here is your family',
   },
+  {
+    toolName: 'get_person_profile',
+    asset: 'person-profile',
+    templateUri: 'ui://widget/person-profile.html',
+    title: 'Family member',
+    invoking: 'Looking them up',
+    invoked: 'Here they are',
+  },
+  {
+    toolName: 'get_recent_family_activity',
+    asset: 'recent-activity',
+    templateUri: 'ui://widget/recent-activity.html',
+    title: 'Recent family activity',
+    invoking: 'Catching up on activity',
+    invoked: "Here's what's new",
+  },
 ];
 
 const byTool = new Map(WIDGETS.map((w) => [w.toolName, w]));
