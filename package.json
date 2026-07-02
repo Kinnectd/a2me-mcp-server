@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:widgets",
+    "build:server": "tsc",
+    "build:widgets": "tsx widgets/build-widgets.mts",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "test": "vitest run",
@@ -35,12 +37,20 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^19.0.2",
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
     "eslint": "^10.4.1",
+    "happy-dom": "^19.0.2",
     "prettier": "^3.8.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
+    "vite": "^7.1.12",
     "vitest": "^4.1.8"
   }
 }

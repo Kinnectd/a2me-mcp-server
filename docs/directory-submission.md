@@ -87,24 +87,33 @@ Docs: <https://developers.openai.com/apps-sdk/app-submission-guidelines>
 | Functioning MCP server, low latency, graceful errors                                                                                             | ✅                                  |
 | Correct tool annotations (`readOnlyHint`/`openWorldHint`) + justify each at submission                                                           | ✅                                  |
 | Name (≤30 chars), short + long description                                                                                                       | ✅ draft above                      |
-| Icon 64×64px, <5KB                                                                                                                               | 🔴 export from brand assets (Drive) |
+| Icon 64×64px, <5KB                                                                                                                               | ✅ `assets/app-icon-64.png` (852 B) |
+| Interactive UI (Apps SDK widgets)                                                                                                                | ✅ 2 widgets built (see below)      |
 | Screenshots reflecting real behavior                                                                                                             | 🔴 capture from live connect        |
 | Verified website                                                                                                                                 | ✅ a2me.app/features/ai-integration |
 | Privacy policy                                                                                                                                   | ✅ a2me.app/privacy                 |
 | Commerce restriction (physical goods only; no digital subscriptions in-app)                                                                      | ✅ n/a — connector sells nothing    |
 | Only one version under review at a time                                                                                                          | —                                   |
 
-**Scope decision (pending Byron):** submit the existing **data-only** connector
-first (fastest, tests acceptance) vs. build Apps SDK **UI components**
-(`window.openai`, richer inline "app") before submitting. Default: data-only first.
+**Scope decision (DECIDED — Byron, go full Apps SDK):** ship interactive inline UI
+components, not data-only. Built two React widgets rendered inside ChatGPT:
+`get_upcoming_family_dates` → **Upcoming family dates** card, `get_family_members` →
+**Your family** roster. Each is served as a `ui://widget/*.html` resource
+(`text/html+skybridge`) with the tool carrying `openai/outputTemplate`; the widget reads
+the tool's `structuredContent` from `window.openai.toolOutput`. Source in `widgets/src/`,
+architecture in the README. These make the listing visual and give us branded artifacts
+for social posts. Add more widgets later (person profile, activity feed) as desired.
 
 ---
 
 ## Open items needing Byron
 
-1. 🔴 **Claude org tier** — confirm Team/Enterprise (or create one) to unlock the submission portal.
-2. 🔴 **OpenAI identity verification** — complete under the publishing name in the Platform Dashboard.
-3. 🔴 **Icon** — 64×64px <5KB PNG from the A2Me brand assets.
-4. 🔴 **Screenshots** — connect the prod server in Claude/ChatGPT from a **family-having** account and capture 3–5 real responses (use the example prompts above). Note: `byron.walker@kinnectd.com` has no family on dev; use a populated account against prod.
-5. 🔴 **Support contact** — confirm a monitored support email/URL for the listings.
-6. ⏳ **ChatGPT UI scope** — data-only vs. Apps SDK components (see above).
+1. 🔴 **Claude org tier** — create a Team/Enterprise Claude org to unlock the submission portal (walkthrough §A).
+2. 🔴 **OpenAI identity verification** — complete under the publishing name in the Platform Dashboard (walkthrough §B).
+3. ✅ **Icon** — `assets/app-icon-64.png` (64px, 852 B) + `app-icon-512.png`.
+4. ✅ **ChatGPT UI scope** — decided: full Apps SDK widgets (built).
+5. 🔴 **Deploy widgets to prod** — merge this branch → dev (auto-deploys), verify widgets render in ChatGPT against dev, then promote dev → main so `mcp.a2me.app` serves them before submitting.
+6. 🔴 **Screenshots** — co-create: connect the prod (or dev) server in ChatGPT/Claude from a **family-having** account and capture 3–5 real responses (widgets + example prompts). `byron.walker@kinnectd.com` has no family on dev; use a populated account.
+7. 🔴 **Support contact** — confirm a monitored support email/URL for the listings.
+
+See [`submission-walkthrough.md`](submission-walkthrough.md) for Byron's step-by-step.

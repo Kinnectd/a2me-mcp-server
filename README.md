@@ -115,16 +115,35 @@ Currently uses **mock authentication** — always returns an authenticated user 
 | GET    | `/relationships/path`                | Relationship path between two people |
 | GET    | `/birthday-cards/context/{personId}` | Birthday card writing context        |
 
+## ChatGPT app widgets
+
+For ChatGPT (Apps SDK), two tools render an interactive inline widget instead of
+plain JSON:
+
+- `get_upcoming_family_dates` → an **Upcoming family dates** card
+- `get_family_members` → a **Your family** roster
+
+Each widget is a small React bundle in [`widgets/src/`](widgets/src) built by
+`npm run build:widgets` into `dist-widgets/<name>.js|.css`. The server serves those as
+static assets (`/widgets/...`) and exposes each as a `ui://widget/<name>.html`
+resource (MIME `text/html+skybridge`); the paired tool carries
+`_meta["openai/outputTemplate"]` pointing at it. The widget reads the tool's
+`structuredContent` from `window.openai.toolOutput` and renders it. Other MCP clients
+(Claude, KAI) ignore the widgets and use the same tools' text output. See
+[`src/widgets/registry.ts`](src/widgets/registry.ts).
+
 ## Development
 
 ```bash
-npm run dev        # Run with tsx (hot reload)
-npm run build      # Compile TypeScript
-npm run test       # Run tests
-npm run test:watch # Watch mode
-npm run lint       # ESLint
-npm run format     # Prettier
-npm run check      # Type check only
+npm run dev            # Run the server with tsx (hot reload)
+npm run build          # Compile server (tsc) + build widget bundles
+npm run build:server   # Server only
+npm run build:widgets  # Widget bundles only (-> dist-widgets/)
+npm run test           # Run tests (incl. widget render tests)
+npm run test:watch     # Watch mode
+npm run lint           # ESLint
+npm run format         # Prettier
+npm run check          # Type check only
 ```
 
 ## Privacy Design

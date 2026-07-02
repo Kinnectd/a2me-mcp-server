@@ -12,12 +12,26 @@ import { getBirthdayCardContext } from './tools/get-birthday-card-context.js';
 import { findFamilyMember } from './tools/find-family-member.js';
 import { answerFamilyDateQuestion } from './tools/answer-family-date-question.js';
 import { getMessageContextForPerson } from './tools/get-message-context-for-person.js';
+import {
+  WIDGETS,
+  widgetForTool,
+  widgetHtml,
+  widgetToolMeta,
+  WIDGET_MIME_TYPE,
+} from './widgets/registry.js';
 
 export function createServer(): McpServer {
   const server = new McpServer({
     name: config.serverName,
     version: config.serverVersion,
   });
+
+  // ChatGPT Apps SDK: `_meta.openai/outputTemplate` links a tool to the `ui://` widget
+  // that renders its structuredContent. Returns {} for tools without a widget.
+  const uiMeta = (toolName: string): Record<string, unknown> => {
+    const w = widgetForTool(toolName);
+    return w ? widgetToolMeta(w) : {};
+  };
 
   // Every tool in this server is read-only and reaches out to the external A2Me
   // API on behalf of the authenticated user, so all tools share these annotation
@@ -40,6 +54,7 @@ export function createServer(): McpServer {
         "Returns the authenticated user's family members with relationship labels. Privacy-safe: no emails, phones, or full DOBs.",
       inputSchema: {},
       annotations: { title: 'Get family members', ...readOnlyExternal },
+      _meta: uiMeta('get_family_members'),
     },
     async () => getFamilyMembers({}),
   );
@@ -60,6 +75,7 @@ export function createServer(): McpServer {
           .describe('Days to look ahead (default: 30)'),
       },
       annotations: { title: 'Get upcoming family dates', ...readOnlyExternal },
+      _meta: uiMeta('get_upcoming_family_dates'),
     },
     async (input) => getUpcomingFamilyDates({ daysAhead: input.daysAhead ?? 30 }),
   );
@@ -187,6 +203,28 @@ export function createServer(): McpServer {
         tone: input.tone,
       }),
   );
+
+  // ChatGPT Apps SDK widget templates. Each is a `ui://` resource whose body is the
+  // `text/html+skybridge` document ChatGPT loads in an iframe; the referenced bundle
+  // renders the paired tool's structuredContent. Harmless to other MCP clients, which
+  // simply ignore resources they don't request.
+  for (const w of WIDGETS) {
+    server.registerResource(
+      w.asset,
+      w.templateUri,
+      { title: w.title, mimeType: WIDGET_MIME_TYPE, _meta: widgetToolMeta(w) },
+      async () => ({
+        contents: [
+          {
+            uri: w.templateUri,
+            mimeType: WIDGET_MIME_TYPE,
+            text: widgetHtml(w),
+            _meta: widgetToolMeta(w),
+          },
+        ],
+      }),
+    );
+  }
 
   return server;
 }

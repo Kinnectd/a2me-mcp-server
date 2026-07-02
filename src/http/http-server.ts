@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express, { type Request, type Response, type NextFunction, type Express } from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from '../server.js';
@@ -43,6 +45,25 @@ export function sanitizeForwardedHeader(
 export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): Express {
   const app = express();
   app.use(express.json());
+
+  // Static ChatGPT Apps SDK widget bundles (built into dist-widgets/ by
+  // `npm run build:widgets`). Public + CORS: ChatGPT loads these from its own iframe
+  // origin, and they contain no user data (data arrives via the authenticated tool
+  // call's structuredContent, not from these files).
+  const widgetsDir = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'dist-widgets',
+  );
+  app.use(
+    '/widgets',
+    (_req: Request, res: Response, next: NextFunction) => {
+      res.set('Access-Control-Allow-Origin', '*');
+      next();
+    },
+    express.static(widgetsDir),
+  );
 
   // RFC 9728 — public, unauthenticated, so clients can discover the authorization server.
   // Serve at the root path and at the path-suffixed variant (RFC 9728 path-insertion), since some
