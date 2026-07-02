@@ -19,98 +19,166 @@ export function createServer(): McpServer {
     version: config.serverVersion,
   });
 
+  // Every tool in this server is read-only and reaches out to the external A2Me
+  // API on behalf of the authenticated user, so all tools share these annotation
+  // hints. Directory reviewers (Claude Connectors Directory, ChatGPT app
+  // directory) require accurate `title` + `readOnlyHint`/`openWorldHint` on every
+  // tool — missing/incorrect annotations are a leading cause of rejection.
+  const readOnlyExternal = {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: true,
+  } as const;
+
   // Tool 1: Get family members
-  server.tool(
+  server.registerTool(
     'get_family_members',
-    "Returns the authenticated user's family members with relationship labels. Privacy-safe: no emails, phones, or full DOBs.",
-    {},
+    {
+      title: 'Get family members',
+      description:
+        "Returns the authenticated user's family members with relationship labels. Privacy-safe: no emails, phones, or full DOBs.",
+      inputSchema: {},
+      annotations: { title: 'Get family members', ...readOnlyExternal },
+    },
     async () => getFamilyMembers({}),
   );
 
   // Tool 2: Get upcoming family dates
-  server.tool(
+  server.registerTool(
     'get_upcoming_family_dates',
-    'Returns upcoming birthdays, anniversaries, and family events. Dates shown as month-day only.',
     {
-      daysAhead: z.number().min(1).max(365).optional().describe('Days to look ahead (default: 30)'),
+      title: 'Get upcoming family dates',
+      description:
+        'Returns upcoming birthdays, anniversaries, and family events. Dates shown as month-day only.',
+      inputSchema: {
+        daysAhead: z
+          .number()
+          .min(1)
+          .max(365)
+          .optional()
+          .describe('Days to look ahead (default: 30)'),
+      },
+      annotations: { title: 'Get upcoming family dates', ...readOnlyExternal },
     },
     async (input) => getUpcomingFamilyDates({ daysAhead: input.daysAhead ?? 30 }),
   );
 
   // Tool 3: Get recent family activity
-  server.tool(
+  server.registerTool(
     'get_recent_family_activity',
-    'Returns recent family activity (posts, photos, videos, birthday cards, events).',
     {
-      sinceHours: z
-        .number()
-        .min(1)
-        .max(720)
-        .optional()
-        .describe('Hours to look back (default: 72)'),
-      limit: z.number().min(1).max(100).optional().describe('Max results (default: 20)'),
+      title: 'Get recent family activity',
+      description:
+        'Returns recent family activity (posts, photos, videos, birthday cards, events).',
+      inputSchema: {
+        sinceHours: z
+          .number()
+          .min(1)
+          .max(720)
+          .optional()
+          .describe('Hours to look back (default: 72)'),
+        limit: z.number().min(1).max(100).optional().describe('Max results (default: 20)'),
+      },
+      annotations: { title: 'Get recent family activity', ...readOnlyExternal },
     },
     async (input) =>
       getRecentFamilyActivity({ sinceHours: input.sinceHours ?? 72, limit: input.limit ?? 20 }),
   );
 
   // Tool 4: Get person profile
-  server.tool(
+  server.registerTool(
     'get_person_profile',
-    "Returns a family member's profile with interests and recent activity. No private contact info.",
-    { personId: z.string().min(1).describe('The person ID to look up') },
+    {
+      title: 'Get person profile',
+      description:
+        "Returns a family member's profile with interests and recent activity. No private contact info.",
+      inputSchema: { personId: z.string().min(1).describe('The person ID to look up') },
+      annotations: { title: 'Get person profile', ...readOnlyExternal },
+    },
     async (input) => getPersonProfile({ personId: input.personId }),
   );
 
   // Tool 5: Get relationship between people
-  server.tool(
+  server.registerTool(
     'get_relationship_between_people',
-    'Returns the relationship between two family members in the family graph.',
     {
-      personAId: z.string().min(1).describe('First person ID'),
-      personBId: z.string().min(1).describe('Second person ID'),
+      title: 'Get relationship between people',
+      description: 'Returns the relationship between two family members in the family graph.',
+      inputSchema: {
+        personAId: z.string().min(1).describe('First person ID'),
+        personBId: z.string().min(1).describe('Second person ID'),
+      },
+      annotations: { title: 'Get relationship between people', ...readOnlyExternal },
     },
     async (input) =>
       getRelationshipBetweenPeople({ personAId: input.personAId, personBId: input.personBId }),
   );
 
   // Tool 6: Get birthday card context
-  server.tool(
+  server.registerTool(
     'get_birthday_card_context',
-    "Returns context for writing a birthday card — recipient's interests, memories, and tone suggestions.",
-    { personId: z.string().min(1).describe('Person ID of the birthday card recipient') },
+    {
+      title: 'Get birthday card context',
+      description:
+        "Returns context for writing a birthday card — recipient's interests, memories, and tone suggestions.",
+      inputSchema: {
+        personId: z.string().min(1).describe('Person ID of the birthday card recipient'),
+      },
+      annotations: { title: 'Get birthday card context', ...readOnlyExternal },
+    },
     async (input) => getBirthdayCardContext({ personId: input.personId }),
   );
 
   // Tool 7: Find family member
-  server.tool(
+  server.registerTool(
     'find_family_member',
-    'Searches for a family member by name or relationship. Supports "my grandmother", "mom", "Sarah".',
     {
-      query: z
-        .string()
-        .min(1)
-        .describe('Name, relationship, or natural reference (e.g., "Sarah", "my grandmother")'),
+      title: 'Find family member',
+      description:
+        'Searches for a family member by name or relationship. Supports "my grandmother", "mom", "Sarah".',
+      inputSchema: {
+        query: z
+          .string()
+          .min(1)
+          .describe('Name, relationship, or natural reference (e.g., "Sarah", "my grandmother")'),
+      },
+      annotations: { title: 'Find family member', ...readOnlyExternal },
     },
     async (input) => findFamilyMember({ query: input.query }),
   );
 
   // Tool 8: Answer family date question
-  server.tool(
+  server.registerTool(
     'answer_family_date_question',
-    'Answers natural language questions about family dates like "When is mom\'s birthday?"',
-    { question: z.string().min(1).describe('Natural language question about family dates') },
+    {
+      title: 'Answer family date question',
+      description:
+        'Answers natural language questions about family dates like "When is mom\'s birthday?"',
+      inputSchema: {
+        question: z.string().min(1).describe('Natural language question about family dates'),
+      },
+      annotations: { title: 'Answer family date question', ...readOnlyExternal },
+    },
     async (input) => answerFamilyDateQuestion({ question: input.question }),
   );
 
   // Tool 9: Get message context for person
-  server.tool(
+  server.registerTool(
     'get_message_context_for_person',
-    'Returns context for writing a message to a family member with suggestions and privacy notes.',
     {
-      personReference: z.string().min(1).describe('Who the message is for (name or relationship)'),
-      occasion: z.string().optional().describe('Occasion (e.g., "birthday", "thank you")'),
-      tone: z.string().optional().describe('Desired tone (e.g., "warm", "funny", "formal")'),
+      title: 'Get message context for person',
+      description:
+        'Returns context for writing a message to a family member with suggestions and privacy notes.',
+      inputSchema: {
+        personReference: z
+          .string()
+          .min(1)
+          .describe('Who the message is for (name or relationship)'),
+        occasion: z.string().optional().describe('Occasion (e.g., "birthday", "thank you")'),
+        tone: z.string().optional().describe('Desired tone (e.g., "warm", "funny", "formal")'),
+      },
+      annotations: { title: 'Get message context for person', ...readOnlyExternal },
     },
     async (input) =>
       getMessageContextForPerson({
