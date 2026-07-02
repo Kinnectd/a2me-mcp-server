@@ -12,19 +12,19 @@ export async function getUpcomingFamilyDates(input: z.infer<typeof getUpcomingFa
   const client = new A2MeApiClient(config.a2meApiUrl, config.a2meAuthToken);
   const dates = await client.getUpcomingDates(auth.userId, input.daysAhead);
 
+  const structuredContent = {
+    upcomingDates: dates,
+    daysAhead: input.daysAhead,
+    totalCount: dates.length,
+  };
+
   return {
+    // structuredContent drives the ChatGPT widget; text content is model-facing.
+    structuredContent,
     content: [
       {
         type: 'text' as const,
-        text: JSON.stringify(
-          {
-            upcomingDates: dates,
-            daysAhead: input.daysAhead,
-            totalCount: dates.length,
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(structuredContent, null, 2),
       },
     ],
   };
