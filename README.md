@@ -137,6 +137,30 @@ This server is designed to be **privacy-first**:
 - All data scoped to the authenticated user's family only
 - Managed accounts (children) have additional protections
 
+## Privacy Policy
+
+**Privacy policy:** <https://a2me.app/privacy>
+
+This connector accesses A2Me data on behalf of the authenticated user, over an
+OAuth 2.0 "Connect A2Me" flow, and is bound by the A2Me privacy policy above.
+
+- **What we collect / access:** read-only family-context data for the
+  authenticated user's own family — member names, relationship labels,
+  month–day of birthdays and events, and recent activity summaries. We never
+  return email addresses, phone numbers, physical addresses, birth years,
+  or financial/health data.
+- **How it's used:** returned to the connected AI assistant solely to answer
+  the user's request in-session. The connector does not train models on this
+  data and performs no writes back to A2Me.
+- **Storage & retention:** the connector holds no family data at rest. For
+  transparency and abuse prevention we log access metadata (timestamp,
+  tool name, calling assistant, scopes) in an append-only audit log; users can
+  review this under **Settings → Connected apps** in A2Me.
+- **Third-party sharing:** OAuth tokens are issued and validated via our auth
+  provider (Scalekit); no family data is shared with third parties beyond the
+  AI assistant the user explicitly connected.
+- **Contact:** privacy@a2me.app · security disclosures per [SECURITY.md](SECURITY.md).
+
 ## Tech Stack
 
 - **Runtime:** Node.js 20+
@@ -144,7 +168,7 @@ This server is designed to be **privacy-first**:
 - **MCP SDK:** `@modelcontextprotocol/sdk`
 - **Validation:** Zod
 - **Testing:** Vitest
-- **Transport:** stdio (standard MCP transport)
+- **Transport:** Streamable HTTP (remote/production) and stdio (local dev)
 
 ## License
 
