@@ -37,6 +37,22 @@ It runs on **stdio** by default (for local MCP clients) and supports a remote **
 | `answer_family_date_question`     | Natural language date questions ("When is mom's birthday?")     |
 | `get_message_context_for_person`  | Context for writing a message with suggestions                  |
 
+## Prompts
+
+The server also exposes **prompts** — one-click starting points that appear as
+connector commands in Claude (and suggestions in ChatGPT), so users get value without
+knowing tool names. Each steers the assistant to the read-only tools above:
+
+| Prompt                  | What it does                                           |
+| ----------------------- | ------------------------------------------------------ |
+| `write_birthday_card`   | Draft a birthday card grounded in a person's context   |
+| `write_family_message`  | Draft a message for any occasion/tone                  |
+| `family_catch_up`       | Summarize what's new with the family                   |
+| `upcoming_family_dates` | List upcoming birthdays/anniversaries with suggestions |
+| `about_person`          | Warm summary of a family member and how you're related |
+
+See [`src/prompts/index.ts`](src/prompts/index.ts).
+
 ## Example Scenarios
 
 1. **"Help me write a birthday card for my sister"**

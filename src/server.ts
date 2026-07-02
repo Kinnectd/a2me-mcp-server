@@ -19,6 +19,33 @@ import {
   widgetToolMeta,
   WIDGET_MIME_TYPE,
 } from './widgets/registry.js';
+import { registerPrompts } from './prompts/index.js';
+
+/**
+ * Runs a tool handler and turns any failure (A2Me API down, timeout, unexpected data)
+ * into a friendly, non-technical `isError` result instead of leaking a raw exception —
+ * the graceful-error-handling both directories require. The real cause is logged
+ * server-side for debugging.
+ */
+export async function handle<T>(
+  label: string,
+  run: () => Promise<T>,
+): Promise<T | { isError: true; content: { type: 'text'; text: string }[] }> {
+  try {
+    return await run();
+  } catch (err) {
+    console.error(`[tool ${label}] failed:`, err instanceof Error ? err.message : String(err));
+    return {
+      isError: true,
+      content: [
+        {
+          type: 'text' as const,
+          text: `Sorry — I couldn't reach A2Me to get your ${label} right now. Please try again in a moment.`,
+        },
+      ],
+    };
+  }
+}
 
 export function createServer(): McpServer {
   const server = new McpServer({
@@ -56,7 +83,7 @@ export function createServer(): McpServer {
       annotations: { title: 'Get family members', ...readOnlyExternal },
       _meta: uiMeta('get_family_members'),
     },
-    async () => getFamilyMembers({}),
+    async () => handle('family members', () => getFamilyMembers({})),
   );
 
   // Tool 2: Get upcoming family dates
@@ -77,7 +104,10 @@ export function createServer(): McpServer {
       annotations: { title: 'Get upcoming family dates', ...readOnlyExternal },
       _meta: uiMeta('get_upcoming_family_dates'),
     },
-    async (input) => getUpcomingFamilyDates({ daysAhead: input.daysAhead ?? 30 }),
+    async (input) =>
+      handle('upcoming family dates', () =>
+        getUpcomingFamilyDates({ daysAhead: input.daysAhead ?? 30 }),
+      ),
   );
 
   // Tool 3: Get recent family activity
@@ -99,7 +129,9 @@ export function createServer(): McpServer {
       annotations: { title: 'Get recent family activity', ...readOnlyExternal },
     },
     async (input) =>
-      getRecentFamilyActivity({ sinceHours: input.sinceHours ?? 72, limit: input.limit ?? 20 }),
+      handle('recent family activity', () =>
+        getRecentFamilyActivity({ sinceHours: input.sinceHours ?? 72, limit: input.limit ?? 20 }),
+      ),
   );
 
   // Tool 4: Get person profile
@@ -112,7 +144,7 @@ export function createServer(): McpServer {
       inputSchema: { personId: z.string().min(1).describe('The person ID to look up') },
       annotations: { title: 'Get person profile', ...readOnlyExternal },
     },
-    async (input) => getPersonProfile({ personId: input.personId }),
+    async (input) => handle('person profile', () => getPersonProfile({ personId: input.personId })),
   );
 
   // Tool 5: Get relationship between people
@@ -128,7 +160,9 @@ export function createServer(): McpServer {
       annotations: { title: 'Get relationship between people', ...readOnlyExternal },
     },
     async (input) =>
-      getRelationshipBetweenPeople({ personAId: input.personAId, personBId: input.personBId }),
+      handle('relationship', () =>
+        getRelationshipBetweenPeople({ personAId: input.personAId, personBId: input.personBId }),
+      ),
   );
 
   // Tool 6: Get birthday card context
@@ -143,7 +177,8 @@ export function createServer(): McpServer {
       },
       annotations: { title: 'Get birthday card context', ...readOnlyExternal },
     },
-    async (input) => getBirthdayCardContext({ personId: input.personId }),
+    async (input) =>
+      handle('birthday card context', () => getBirthdayCardContext({ personId: input.personId })),
   );
 
   // Tool 7: Find family member
@@ -161,7 +196,7 @@ export function createServer(): McpServer {
       },
       annotations: { title: 'Find family member', ...readOnlyExternal },
     },
-    async (input) => findFamilyMember({ query: input.query }),
+    async (input) => handle('search', () => findFamilyMember({ query: input.query })),
   );
 
   // Tool 8: Answer family date question
@@ -176,7 +211,8 @@ export function createServer(): McpServer {
       },
       annotations: { title: 'Answer family date question', ...readOnlyExternal },
     },
-    async (input) => answerFamilyDateQuestion({ question: input.question }),
+    async (input) =>
+      handle('date answer', () => answerFamilyDateQuestion({ question: input.question })),
   );
 
   // Tool 9: Get message context for person
@@ -197,11 +233,13 @@ export function createServer(): McpServer {
       annotations: { title: 'Get message context for person', ...readOnlyExternal },
     },
     async (input) =>
-      getMessageContextForPerson({
-        personReference: input.personReference,
-        occasion: input.occasion,
-        tone: input.tone,
-      }),
+      handle('message context', () =>
+        getMessageContextForPerson({
+          personReference: input.personReference,
+          occasion: input.occasion,
+          tone: input.tone,
+        }),
+      ),
   );
 
   // ChatGPT Apps SDK widget templates. Each is a `ui://` resource whose body is the
@@ -225,6 +263,9 @@ export function createServer(): McpServer {
       }),
     );
   }
+
+  // One-click starting points (Claude connector commands / ChatGPT suggestions).
+  registerPrompts(server);
 
   return server;
 }

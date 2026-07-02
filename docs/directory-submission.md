@@ -18,6 +18,8 @@ Status legend: ✅ done · ⏳ in progress / draft ready · 🔴 needs Byron (ac
 | OAuth 2.0 connect flow                                     | ✅     | Scalekit prod env, issuer `…scalekit.com/resources/res_133137420655641351`                                    |
 | All tools carry `title` + `readOnlyHint` + `openWorldHint` | ✅     | Added this pass; verified via `tools/list`. Missing annotations are the #1 rejection cause on both platforms. |
 | Read-only, privacy-redacted tools                          | ✅     | No email/phone/address; birthdays month–day only; family-scoped                                               |
+| Graceful error handling (clear messaging)                  | ✅     | Tool failures return a friendly `isError` message, never a raw exception (both directories require this).     |
+| Prompts (starting points)                                  | ✅     | 5 MCP prompts (birthday card, family message, catch-up, upcoming dates, about-person) → surface as commands.  |
 | Privacy policy (hosted)                                    | ✅     | <https://a2me.app/privacy> · summarized in README                                                             |
 | Support / contact channel                                  | ⏳     | Using `privacy@a2me.app` + SECURITY.md. Confirm a monitored support address/URL.                              |
 | Tool result ≤ 25k tokens, handler ≤ 5 min (Claude limits)  | ✅     | Responses are small JSON; no long-running handlers                                                            |
