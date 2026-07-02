@@ -18,6 +18,8 @@ Status legend: ✅ done · ⏳ in progress / draft ready · 🔴 needs Byron (ac
 | OAuth 2.0 connect flow                                     | ✅     | Scalekit prod env, issuer `…scalekit.com/resources/res_133137420655641351`                                    |
 | All tools carry `title` + `readOnlyHint` + `openWorldHint` | ✅     | Added this pass; verified via `tools/list`. Missing annotations are the #1 rejection cause on both platforms. |
 | Read-only, privacy-redacted tools                          | ✅     | No email/phone/address; birthdays month–day only; family-scoped                                               |
+| Graceful error handling (clear messaging)                  | ✅     | Tool failures return a friendly `isError` message, never a raw exception (both directories require this).     |
+| Prompts (starting points)                                  | ✅     | 5 MCP prompts (birthday card, family message, catch-up, upcoming dates, about-person) → surface as commands.  |
 | Privacy policy (hosted)                                    | ✅     | <https://a2me.app/privacy> · summarized in README                                                             |
 | Support / contact channel                                  | ⏳     | Using `privacy@a2me.app` + SECURITY.md. Confirm a monitored support address/URL.                              |
 | Tool result ≤ 25k tokens, handler ≤ 5 min (Claude limits)  | ✅     | Responses are small JSON; no long-running handlers                                                            |
@@ -81,24 +83,26 @@ FAQ: <https://support.claude.com/en/articles/11596036>
 
 Docs: <https://developers.openai.com/apps-sdk/app-submission-guidelines>
 
-| Requirement                                                                                                                                      | Status                              |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
-| 🔴 **Identity/business verification** in OpenAI Platform Dashboard under the exact publishing name (else auto-reject). Owner / `api.apps.write`. | 🔴 Byron                            |
-| Functioning MCP server, low latency, graceful errors                                                                                             | ✅                                  |
-| Correct tool annotations (`readOnlyHint`/`openWorldHint`) + justify each at submission                                                           | ✅                                  |
-| Name (≤30 chars), short + long description                                                                                                       | ✅ draft above                      |
-| Icon 64×64px, <5KB                                                                                                                               | ✅ `assets/app-icon-64.png` (852 B) |
-| Interactive UI (Apps SDK widgets)                                                                                                                | ✅ 2 widgets built (see below)      |
-| Screenshots reflecting real behavior                                                                                                             | 🔴 capture from live connect        |
-| Verified website                                                                                                                                 | ✅ a2me.app/features/ai-integration |
-| Privacy policy                                                                                                                                   | ✅ a2me.app/privacy                 |
-| Commerce restriction (physical goods only; no digital subscriptions in-app)                                                                      | ✅ n/a — connector sells nothing    |
-| Only one version under review at a time                                                                                                          | —                                   |
+| Requirement                                                                                         | Status                              |
+| --------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| ✅ **Identity/business verification** in OpenAI Platform Dashboard under the exact publishing name. | ✅ Byron (done)                     |
+| Functioning MCP server, low latency, graceful errors                                                | ✅                                  |
+| Correct tool annotations (`readOnlyHint`/`openWorldHint`) + justify each at submission              | ✅                                  |
+| Name (≤30 chars), short + long description                                                          | ✅ draft above                      |
+| Icon 64×64px, <5KB                                                                                  | ✅ `assets/app-icon-64.png` (852 B) |
+| Interactive UI (Apps SDK widgets)                                                                   | ✅ 4 widgets built (see below)      |
+| Screenshots reflecting real behavior                                                                | 🔴 capture from live connect        |
+| Verified website                                                                                    | ✅ a2me.app/features/ai-integration |
+| Privacy policy                                                                                      | ✅ a2me.app/privacy                 |
+| Commerce restriction (physical goods only; no digital subscriptions in-app)                         | ✅ n/a — connector sells nothing    |
+| Only one version under review at a time                                                             | —                                   |
 
 **Scope decision (DECIDED — Byron, go full Apps SDK):** ship interactive inline UI
 components, not data-only. Built two React widgets rendered inside ChatGPT:
-`get_upcoming_family_dates` → **Upcoming family dates** card, `get_family_members` →
-**Your family** roster. Each is served as a `ui://widget/*.html` resource
+four widgets: `get_upcoming_family_dates` → **Upcoming family dates** card,
+`get_family_members` → **Your family** roster, `get_person_profile` → **Family member**
+profile card, `get_recent_family_activity` → **Recent family activity** feed. Each is
+served as a `ui://widget/*.html` resource
 (`text/html+skybridge`) with the tool carrying `openai/outputTemplate`; the widget reads
 the tool's `structuredContent` from `window.openai.toolOutput`. Source in `widgets/src/`,
 architecture in the README. These make the listing visual and give us branded artifacts
@@ -109,7 +113,7 @@ for social posts. Add more widgets later (person profile, activity feed) as desi
 ## Open items needing Byron
 
 1. 🔴 **Claude org tier** — create a Team/Enterprise Claude org to unlock the submission portal (walkthrough §A).
-2. 🔴 **OpenAI identity verification** — complete under the publishing name in the Platform Dashboard (walkthrough §B).
+2. ✅ **OpenAI identity verification** — done (Byron completed it).
 3. ✅ **Icon** — `assets/app-icon-64.png` (64px, 852 B) + `app-icon-512.png`.
 4. ✅ **ChatGPT UI scope** — decided: full Apps SDK widgets (built).
 5. 🔴 **Deploy widgets to prod** — merge this branch → dev (auto-deploys), verify widgets render in ChatGPT against dev, then promote dev → main so `mcp.a2me.app` serves them before submitting.

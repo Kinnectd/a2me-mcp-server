@@ -24,6 +24,8 @@ export async function getPersonProfile(input: z.infer<typeof getPersonProfileSch
   }
 
   return {
+    // structuredContent drives the ChatGPT person-profile widget.
+    structuredContent: { profile },
     content: [
       {
         type: 'text' as const,

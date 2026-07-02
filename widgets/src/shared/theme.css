@@ -216,3 +216,70 @@
 [data-theme='dark'] .a2me-chip {
   color: #7fe0ad;
 }
+
+/* Person-profile + activity extras */
+.a2me-profile {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  align-items: center;
+}
+
+.a2me-profile .a2me-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+}
+
+.a2me-profile h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.a2me-section {
+  padding: 12px 16px;
+  border-top: 1px solid var(--divider);
+}
+
+.a2me-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.a2me-bio {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.a2me-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.a2me-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--a2me-green-soft);
+  color: var(--a2me-green-deep);
+}
+
+[data-theme='dark'] .a2me-tag {
+  color: #7fe0ad;
+}
+
+.a2me-time {
+  flex: none;
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}

@@ -36,7 +36,11 @@ role with "Directory management") can submit. A personal/Pro plan can't.
 
 ---
 
-## B. ChatGPT — identity verification in the OpenAI Platform
+## B. ChatGPT — identity verification in the OpenAI Platform ✅ DONE
+
+> **Status: complete** — Byron finished OpenAI identity verification. The steps below
+> are kept for reference. Next ChatGPT step is creating the app draft (after the widgets
+> deploy to prod), which I'll prep.
 
 Apps must be submitted by a **verified** individual/organization, under the exact
 name you'll publish as, or the submission is auto-rejected. Do this early — it can
