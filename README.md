@@ -37,6 +37,25 @@ It runs on **stdio** by default (for local MCP clients) and supports a remote **
 | `answer_family_date_question`     | Natural language date questions ("When is mom's birthday?")     |
 | `get_message_context_for_person`  | Context for writing a message with suggestions                  |
 
+## Prompts
+
+The server also exposes **prompts** — one-click starting points that appear as
+connector commands in Claude (and suggestions in ChatGPT), so users get value without
+knowing tool names. Each steers the assistant to the read-only tools above:
+
+| Prompt                  | What it does                                           |
+| ----------------------- | ------------------------------------------------------ |
+| `write_birthday_card`   | Draft a birthday card grounded in a person's context   |
+| `write_family_message`  | Draft a message for any occasion/tone                  |
+| `family_catch_up`       | Summarize what's new with the family                   |
+| `upcoming_family_dates` | List upcoming birthdays/anniversaries with suggestions |
+| `about_person`          | Warm summary of a family member and how you're related |
+
+The `person` argument on these prompts **autocompletes from your family roster**
+(names + relationship labels) as you type — MCP argument completion, scoped to your
+family. See [`src/prompts/index.ts`](src/prompts/index.ts) and
+[`src/completions.ts`](src/completions.ts).
+
 ## Example Scenarios
 
 1. **"Help me write a birthday card for my sister"**
@@ -115,16 +134,37 @@ Currently uses **mock authentication** — always returns an authenticated user 
 | GET    | `/relationships/path`                | Relationship path between two people |
 | GET    | `/birthday-cards/context/{personId}` | Birthday card writing context        |
 
+## ChatGPT app widgets
+
+For ChatGPT (Apps SDK), four tools render an interactive inline widget instead of
+plain JSON:
+
+- `get_upcoming_family_dates` → an **Upcoming family dates** card
+- `get_family_members` → a **Your family** roster
+- `get_person_profile` → a **Family member** profile card
+- `get_recent_family_activity` → a **Recent family activity** feed
+
+Each widget is a small React bundle in [`widgets/src/`](widgets/src) built by
+`npm run build:widgets` into `dist-widgets/<name>.js|.css`. The server serves those as
+static assets (`/widgets/...`) and exposes each as a `ui://widget/<name>.html`
+resource (MIME `text/html+skybridge`); the paired tool carries
+`_meta["openai/outputTemplate"]` pointing at it. The widget reads the tool's
+`structuredContent` from `window.openai.toolOutput` and renders it. Other MCP clients
+(Claude, KAI) ignore the widgets and use the same tools' text output. See
+[`src/widgets/registry.ts`](src/widgets/registry.ts).
+
 ## Development
 
 ```bash
-npm run dev        # Run with tsx (hot reload)
-npm run build      # Compile TypeScript
-npm run test       # Run tests
-npm run test:watch # Watch mode
-npm run lint       # ESLint
-npm run format     # Prettier
-npm run check      # Type check only
+npm run dev            # Run the server with tsx (hot reload)
+npm run build          # Compile server (tsc) + build widget bundles
+npm run build:server   # Server only
+npm run build:widgets  # Widget bundles only (-> dist-widgets/)
+npm run test           # Run tests (incl. widget render tests)
+npm run test:watch     # Watch mode
+npm run lint           # ESLint
+npm run format         # Prettier
+npm run check          # Type check only
 ```
 
 ## Privacy Design
@@ -137,6 +177,30 @@ This server is designed to be **privacy-first**:
 - All data scoped to the authenticated user's family only
 - Managed accounts (children) have additional protections
 
+## Privacy Policy
+
+**Privacy policy:** <https://a2me.app/privacy>
+
+This connector accesses A2Me data on behalf of the authenticated user, over an
+OAuth 2.0 "Connect A2Me" flow, and is bound by the A2Me privacy policy above.
+
+- **What we collect / access:** read-only family-context data for the
+  authenticated user's own family — member names, relationship labels,
+  month–day of birthdays and events, and recent activity summaries. We never
+  return email addresses, phone numbers, physical addresses, birth years,
+  or financial/health data.
+- **How it's used:** returned to the connected AI assistant solely to answer
+  the user's request in-session. The connector does not train models on this
+  data and performs no writes back to A2Me.
+- **Storage & retention:** the connector holds no family data at rest. For
+  transparency and abuse prevention we log access metadata (timestamp,
+  tool name, calling assistant, scopes) in an append-only audit log; users can
+  review this under **Settings → Connected apps** in A2Me.
+- **Third-party sharing:** OAuth tokens are issued and validated via our auth
+  provider (Scalekit); no family data is shared with third parties beyond the
+  AI assistant the user explicitly connected.
+- **Contact:** privacy@a2me.app · security disclosures per [SECURITY.md](SECURITY.md).
+
 ## Tech Stack
 
 - **Runtime:** Node.js 20+
@@ -144,7 +208,7 @@ This server is designed to be **privacy-first**:
 - **MCP SDK:** `@modelcontextprotocol/sdk`
 - **Validation:** Zod
 - **Testing:** Vitest
-- **Transport:** stdio (standard MCP transport)
+- **Transport:** Streamable HTTP (remote/production) and stdio (local dev)
 
 ## License
 

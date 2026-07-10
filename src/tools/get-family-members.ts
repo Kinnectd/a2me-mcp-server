@@ -10,18 +10,17 @@ export async function getFamilyMembers(_input: z.infer<typeof getFamilyMembersSc
   const client = new A2MeApiClient(config.a2meApiUrl, config.a2meAuthToken);
   const members = await client.getFamilyMembers(auth.userId);
 
+  const familyMembers = members.filter((m) => m.personId !== auth.userId);
+  const structuredContent = { familyMembers, totalCount: familyMembers.length };
+
   return {
+    // structuredContent is what the ChatGPT widget renders (window.openai.toolOutput);
+    // the text content is the model-facing rendering.
+    structuredContent,
     content: [
       {
         type: 'text' as const,
-        text: JSON.stringify(
-          {
-            familyMembers: members.filter((m) => m.personId !== auth.userId),
-            totalCount: members.length - 1,
-          },
-          null,
-          2,
-        ),
+        text: JSON.stringify(structuredContent, null, 2),
       },
     ],
   };
