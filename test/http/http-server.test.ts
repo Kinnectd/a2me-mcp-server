@@ -21,6 +21,20 @@ describe('MCP HTTP app', () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
+  it('serves a self-describing landing page and llms.txt at the root', async () => {
+    const landing = await fetch(`${baseUrl}/`);
+    expect(landing.status).toBe(200);
+    const html = await landing.text();
+    expect(html).toContain('A2Me MCP Server');
+    expect(html).toContain('https://mcp.a2me.app/mcp');
+
+    const llms = await fetch(`${baseUrl}/llms.txt`);
+    expect(llms.status).toBe(200);
+    const text = await llms.text();
+    expect(text).toContain('Connector URL');
+    expect(text).toContain('https://a2me.app/llms.txt');
+  });
+
   it('serves OAuth protected-resource metadata publicly', async () => {
     const res = await fetch(`${baseUrl}/.well-known/oauth-protected-resource`);
     expect(res.status).toBe(200);
