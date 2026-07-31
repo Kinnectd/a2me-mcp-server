@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { landingHandler, llmsTxtHandler } from './landing.js';
 import express, { type Request, type Response, type NextFunction, type Express } from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer } from '../server.js';
@@ -73,6 +74,11 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
   };
   app.get(RESOURCE_METADATA_PATH, metadataHandler);
   app.get(`${RESOURCE_METADATA_PATH}${MCP_PATH}`, metadataHandler);
+
+  // Discoverability: the domain root and llms.txt describe this server to
+  // humans and AI assistants (the MCP endpoint itself is POST-only JSON-RPC).
+  app.get('/', landingHandler);
+  app.get('/llms.txt', llmsTxtHandler);
 
   // On a missing/invalid token, challenge with a pointer to the resource metadata so the MCP
   // client knows where to start the OAuth flow (per the MCP authorization spec).
