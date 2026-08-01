@@ -82,9 +82,9 @@ Keep in sync with src/server.ts registrations.
 - find_family_member — fuzzy person lookup by name or relationship ("my sister")
 - get_person_profile — one member's profile (privacy-redacted)
 - get_relationship_between_people — how two family members are related
-- get_recent_family_activity — latest family posts
-- get_message_context_for_person — recent conversation context with one person
-- get_upcoming_family_dates — birthdays and anniversaries ahead (month-day only)
+- get_recent_family_activity — recent family activity: posts, photos, videos, birthday cards, events
+- get_message_context_for_person — context for writing a message to someone: interests, relationship, occasion-appropriate suggestions
+- get_upcoming_family_dates — upcoming birthdays, anniversaries, and family events (month-day only)
 - get_birthday_card_context — context for writing someone's birthday card
 - answer_family_date_question — direct answers like "when is Mom's birthday?"
 - get_upcoming_events — events the user is hosting or invited to, with RSVP status
