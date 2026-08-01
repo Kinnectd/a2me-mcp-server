@@ -31,6 +31,7 @@
   },
   "private": true,
   "dependencies": {
+    "@hono/node-server": "^2.0.12",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
     "jose": "^6.2.3",
