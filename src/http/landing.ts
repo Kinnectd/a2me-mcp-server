@@ -45,6 +45,16 @@ const LANDING_HTML = `<!doctype html>
     metadata is served at
     <a href="/.well-known/oauth-protected-resource">/.well-known/oauth-protected-resource</a>.
   </p>
+  <h2>What your assistant can do</h2>
+  <p>Sixteen read-only tools, always scoped to your own family and what you're allowed to see:</p>
+  <ul>
+    <li><strong>Family</strong> — members, profiles, how two people are related, find someone by name</li>
+    <li><strong>Dates</strong> — upcoming birthdays &amp; anniversaries, birthday-card context, date questions ("when is Mom's birthday?")</li>
+    <li><strong>Events &amp; trips</strong> — what's coming up, RSVP status, trip rosters, flights &amp; lodging ("when does Marcia land?"), itineraries</li>
+    <li><strong>Life stories</strong> — a family member's biography chapters, and the questions nobody has answered yet ("what should I ask Grandpa when I visit?")</li>
+    <li><strong>Memories</strong> — recent family activity, keyword search over posts ("find the post about the lake trip"), a catch-up summary ("what did I miss?")</li>
+    <li><strong>Gifts</strong> — wishlists for birthday and holiday planning</li>
+  </ul>
   <p>
     Not on A2Me yet? <a href="https://a2me.app">Learn more and join</a> — it's free.
   </p>
@@ -63,6 +73,35 @@ const LLMS_TXT = `# A2Me MCP Server
 - Setup guide: ${FEATURE_PAGE}
 - OAuth discovery: https://mcp.a2me.app/.well-known/oauth-protected-resource
 - Registry entry: io.github.Kinnectd/a2me-mcp-server (official MCP registry)
+
+## Tools (read-only, scoped to the authenticated user's own family and visibility)
+
+Keep in sync with src/server.ts registrations.
+
+- get_family_members — the user's family with relationship labels
+- find_family_member — fuzzy person lookup by name or relationship ("my sister")
+- get_person_profile — one member's profile (privacy-redacted)
+- get_relationship_between_people — how two family members are related
+- get_recent_family_activity — latest family posts
+- get_message_context_for_person — recent conversation context with one person
+- get_upcoming_family_dates — birthdays and anniversaries ahead (month-day only)
+- get_birthday_card_context — context for writing someone's birthday card
+- answer_family_date_question — direct answers like "when is Mom's birthday?"
+- get_upcoming_events — events the user is hosting or invited to, with RSVP status
+- get_trip_overview — a trip's roster, flights, lodging, and itinerary ("when does Marcia land?")
+- get_life_story — a member's biography chapters, built from family memories (toasts, speeches, history)
+- get_unanswered_story_questions — unanswered story questions about a person (interview prep)
+- get_person_wishlist — a member's wishlist for gift planning
+- search_family_memories — keyword search over recent family posts
+- whats_new — catch-up summary: recent posts plus what's coming up
+
+## Example questions to ask a connected assistant
+
+- "When does everyone land for the reunion, and who still hasn't RSVP'd?"
+- "What should I ask Grandpa about his life when I visit this weekend?"
+- "Help me write a toast for Mom's birthday using our family stories."
+- "What's on Mike's wishlist? Suggest a gift under $50."
+- "Catch me up — what did I miss this week?"
 
 ## About A2Me
 
