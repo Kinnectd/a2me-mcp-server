@@ -62,6 +62,7 @@ const LANDING_HTML = `<!doctype html>
 </html>
 `;
 
+// The tool list below must stay in sync with src/server.ts registrations.
 const LLMS_TXT = `# A2Me MCP Server
 
 > Remote MCP (Model Context Protocol) server for A2Me (https://a2me.app), the
@@ -75,8 +76,6 @@ const LLMS_TXT = `# A2Me MCP Server
 - Registry entry: io.github.Kinnectd/a2me-mcp-server (official MCP registry)
 
 ## Tools (read-only, scoped to the authenticated user's own family and visibility)
-
-Keep in sync with src/server.ts registrations.
 
 - get_family_members — the user's family with relationship labels
 - find_family_member — fuzzy person lookup by name or relationship ("my sister")
