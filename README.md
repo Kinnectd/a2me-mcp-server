@@ -25,17 +25,24 @@ It runs on **stdio** by default (for local MCP clients) and supports a remote **
 
 ## Available Tools
 
-| Tool                              | Description                                                     |
-| --------------------------------- | --------------------------------------------------------------- |
-| `get_family_members`              | Returns the user's family members with relationship labels      |
-| `get_upcoming_family_dates`       | Birthdays, anniversaries, and events in the next N days         |
-| `get_recent_family_activity`      | Recent posts, photos, videos, birthday cards                    |
-| `get_person_profile`              | A family member's profile, interests, and activity summary      |
-| `get_relationship_between_people` | How two family members are related                              |
-| `get_birthday_card_context`       | Context for writing a birthday card (memories, interests, tone) |
-| `find_family_member`              | Fuzzy search by name or relationship ("mom", "my grandmother")  |
-| `answer_family_date_question`     | Natural language date questions ("When is mom's birthday?")     |
-| `get_message_context_for_person`  | Context for writing a message with suggestions                  |
+| Tool                              | Description                                                         |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `get_family_members`              | Returns the user's family members with relationship labels          |
+| `get_upcoming_family_dates`       | Birthdays, anniversaries, and events in the next N days             |
+| `get_recent_family_activity`      | Recent posts, photos, videos, birthday cards                        |
+| `get_person_profile`              | A family member's profile, interests, and activity summary          |
+| `get_relationship_between_people` | How two family members are related                                  |
+| `get_birthday_card_context`       | Context for writing a birthday card (memories, interests, tone)     |
+| `find_family_member`              | Fuzzy search by name or relationship ("mom", "my grandmother")      |
+| `answer_family_date_question`     | Natural language date questions ("When is mom's birthday?")         |
+| `get_message_context_for_person`  | Context for writing a message with suggestions                      |
+| `get_upcoming_events`             | Upcoming events with the user's RSVP status and RSVP counts         |
+| `get_trip_overview`               | A trip's dates, roster, travel details (flights/lodging), itinerary |
+| `get_life_story`                  | A family member's life story chapters (or recent story answers)     |
+| `get_unanswered_story_questions`  | Unanswered story questions — interview prep for a visit             |
+| `get_person_wishlist`             | A family member's wishlist for gift ideas                           |
+| `search_family_memories`          | Keyword search over recent family posts and memories                |
+| `whats_new`                       | Catch-up bundle: recent posts + what's coming up                    |
 
 ## Prompts
 
@@ -88,7 +95,7 @@ family. See [`src/prompts/index.ts`](src/prompts/index.ts) and
 ┌───────────────────────▼─────────────────────────────────┐
 │                  A2Me MCP Server                          │
 │  ┌─────────────────────────────────────────────────┐    │
-│  │              Tool Registry (9 tools)              │    │
+│  │              Tool Registry (16 tools)             │    │
 │  └──────────────────────┬──────────────────────────┘    │
 │                         │                                │
 │  ┌──────────────────────▼──────────────────────────┐    │

@@ -85,6 +85,111 @@ export interface FamilyMemberSearchResult {
   suggestion: string | null;
 }
 
+/** An upcoming event the user hosts or is invited to (compact, redacted). */
+export interface UpcomingEvent {
+  eventId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  /** Venue name/alias only — never a street address. */
+  location: string | null;
+  eventType: string;
+  /** 'HOSTING' when the user owns/co-hosts; otherwise their guest RSVP, or null if unknown. */
+  myRsvpStatus: string | null;
+  rsvpCounts: { attending: number; tentative: number; declined: number; invited: number };
+}
+
+/** One trip from GET /trips/mine, reduced to what the trip tools need. */
+export interface TripSummary {
+  tripId: string;
+  title: string;
+  destination: string | null;
+  startDate: string;
+  endDate: string;
+  status: string;
+  myRole: string | null;
+}
+
+export interface TripRosterEntry {
+  displayName: string;
+  role: string;
+  rsvpStatus: string;
+}
+
+export interface TripTravelDetail {
+  displayName: string;
+  arrival: {
+    flightNumber: string | null;
+    airline: string | null;
+    origin: string | null;
+    destination: string | null;
+    departsAt: string | null;
+    arrivesAt: string | null;
+  } | null;
+  departure: {
+    flightNumber: string | null;
+    airline: string | null;
+    origin: string | null;
+    destination: string | null;
+    departsAt: string | null;
+    arrivesAt: string | null;
+  } | null;
+  lodging: string | null;
+  notes: string | null;
+}
+
+export interface TripItineraryItem {
+  title: string;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+}
+
+export interface TripOverview {
+  trip: TripSummary & { description: string | null };
+  roster: TripRosterEntry[];
+  /** Invited-but-not-yet-joined, emails masked for privacy. */
+  pendingInvites: { maskedEmail: string; status: string }[];
+  travelDetails: TripTravelDetail[];
+  itinerary: TripItineraryItem[];
+}
+
+/** A person's life story: approved narrative chapters, or recent answers as fallback. */
+export interface LifeStoryResult {
+  subjectName: string;
+  kind: 'narrative' | 'answers';
+  chapters: { heading: string; content: string }[];
+  answers: { question: string; answer: string; answeredBy: string; date: string | null }[];
+  progressSummary: string | null;
+}
+
+export interface StoryQuestionsResult {
+  subjectName: string;
+  progressSummary: string | null;
+  questionsByCategory: { category: string; questions: string[] }[];
+}
+
+export interface WishlistSummary {
+  title: string;
+  description: string | null;
+  items: {
+    name: string;
+    note: string | null;
+    url: string | null;
+    priceEstimate: string | null;
+    isPurchased: boolean;
+  }[];
+}
+
+/** A feed post reduced to the fields keyword search needs (content stays server-redacted). */
+export interface FeedPost {
+  postId: string;
+  authorDisplayName: string;
+  content: string;
+  createdAt: string;
+  hasMedia: boolean;
+}
+
 export interface MessageContext {
   resolvedPerson: PersonMatch;
   relationshipToUser: string;

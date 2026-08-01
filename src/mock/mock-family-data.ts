@@ -4,6 +4,13 @@ import type {
   FamilyActivity,
   PersonProfile,
   BirthdayCardContext,
+  UpcomingEvent,
+  TripSummary,
+  TripOverview,
+  LifeStoryResult,
+  StoryQuestionsResult,
+  WishlistSummary,
+  FeedPost,
 } from '../types/index.js';
 
 export interface MockFamilyMemberData extends FamilyMember {
@@ -298,6 +305,340 @@ export function getMockPersonProfile(personId: string): PersonProfile | null {
     importantDates: member.importantDates,
     recentActivitySummary: recentActivity?.summary || null,
   };
+}
+
+function isoInDays(days: number, hour = 17): string {
+  const d = new Date(today);
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+}
+
+function isoDateInDays(days: number): string {
+  return isoInDays(days).slice(0, 10);
+}
+
+export function getMockUpcomingEvents(): UpcomingEvent[] {
+  return [
+    {
+      eventId: 'event-001',
+      title: 'Walker Family Reunion BBQ',
+      startTime: isoInDays(14, 12),
+      endTime: isoInDays(14, 18),
+      location: "Robert & Linda's backyard",
+      eventType: 'GATHERING',
+      myRsvpStatus: 'ATTENDING',
+      rsvpCounts: { attending: 6, tentative: 1, declined: 0, invited: 2 },
+    },
+    {
+      eventId: 'event-002',
+      title: "Max's Swim Meet",
+      startTime: isoInDays(5, 9),
+      endTime: isoInDays(5, 11),
+      location: 'Community Pool',
+      eventType: 'ACTIVITY',
+      myRsvpStatus: 'HOSTING',
+      rsvpCounts: { attending: 3, tentative: 0, declined: 1, invited: 1 },
+    },
+    {
+      eventId: 'event-003',
+      title: "Linda's Birthday Dinner",
+      startTime: isoInDays(21, 18),
+      endTime: isoInDays(21, 21),
+      location: null,
+      eventType: 'BIRTHDAY',
+      myRsvpStatus: 'INVITED',
+      rsvpCounts: { attending: 2, tentative: 2, declined: 0, invited: 4 },
+    },
+  ];
+}
+
+export function getMockTrips(): TripSummary[] {
+  return [
+    {
+      tripId: 'trip-001',
+      title: 'Lake Tahoe Family Reunion',
+      destination: 'Lake Tahoe, CA',
+      startDate: isoDateInDays(30),
+      endDate: isoDateInDays(34),
+      status: 'PLANNING',
+      myRole: 'ORGANIZER',
+    },
+    {
+      tripId: 'trip-002',
+      title: "Grandma Margaret's Memorial Weekend",
+      destination: 'Portland, OR',
+      startDate: isoDateInDays(60),
+      endDate: isoDateInDays(62),
+      status: 'PLANNING',
+      myRole: 'PARTICIPANT',
+    },
+  ];
+}
+
+export function getMockTripOverview(tripId: string): TripOverview | null {
+  const trip = getMockTrips().find((t) => t.tripId === tripId);
+  if (!trip) return null;
+
+  if (tripId === 'trip-002') {
+    return {
+      trip: { ...trip, description: 'A weekend to remember Grandma Margaret together.' },
+      roster: [
+        { displayName: 'Robert Walker', role: 'ORGANIZER', rsvpStatus: 'ATTENDING' },
+        { displayName: 'Alex Walker', role: 'PARTICIPANT', rsvpStatus: 'ATTENDING' },
+        { displayName: 'David Walker', role: 'PARTICIPANT', rsvpStatus: 'TENTATIVE' },
+      ],
+      pendingInvites: [],
+      travelDetails: [],
+      itinerary: [],
+    };
+  }
+
+  return {
+    trip: { ...trip, description: 'Five days on the lake — cabins, boats, and the annual BBQ.' },
+    roster: [
+      { displayName: 'Alex Walker', role: 'ORGANIZER', rsvpStatus: 'ATTENDING' },
+      { displayName: 'Jordan Rivera', role: 'PARTICIPANT', rsvpStatus: 'ATTENDING' },
+      { displayName: 'Sarah Walker', role: 'PARTICIPANT', rsvpStatus: 'ATTENDING' },
+      { displayName: 'James Chen', role: 'PARTICIPANT', rsvpStatus: 'TENTATIVE' },
+      { displayName: 'Linda Walker', role: 'PARTICIPANT', rsvpStatus: 'INVITED' },
+    ],
+    pendingInvites: [{ maskedEmail: 'd***@example.com', status: 'SENT' }],
+    travelDetails: [
+      {
+        displayName: 'Sarah Walker',
+        arrival: {
+          flightNumber: 'UA512',
+          airline: 'United',
+          origin: 'DEN',
+          destination: 'RNO',
+          departsAt: isoInDays(30, 8),
+          arrivesAt: isoInDays(30, 10),
+        },
+        departure: {
+          flightNumber: 'UA519',
+          airline: 'United',
+          origin: 'RNO',
+          destination: 'DEN',
+          departsAt: isoInDays(34, 15),
+          arrivesAt: isoInDays(34, 18),
+        },
+        lodging: 'Tahoe Pines Cabin #4',
+        notes: 'Renting a car at the airport.',
+      },
+      {
+        displayName: 'Jordan Rivera',
+        arrival: null,
+        departure: null,
+        lodging: 'Tahoe Pines Cabin #2',
+        notes: 'Driving up with Alex and Max.',
+      },
+    ],
+    itinerary: [
+      {
+        title: 'Welcome dinner',
+        startTime: isoInDays(30, 18),
+        endTime: isoInDays(30, 21),
+        location: 'Tahoe Pines Lodge',
+      },
+      {
+        title: 'Boat day',
+        startTime: isoInDays(31, 10),
+        endTime: isoInDays(31, 16),
+        location: 'Sand Harbor',
+      },
+    ],
+  };
+}
+
+export function getMockLifeStory(personId: string): LifeStoryResult | null {
+  // Only Grandma Margaret has an approved narrative; other members fall back to answers.
+  if (personId !== 'person-004') return null;
+  return {
+    subjectName: 'Margaret Walker',
+    kind: 'narrative',
+    chapters: [
+      {
+        heading: 'Childhood',
+        content:
+          'Margaret grew up on a small farm outside Salem, the eldest of four. Summers meant ' +
+          'blackberry picking and helping her mother sell preserves at the county fair.',
+      },
+      {
+        heading: 'Building A Family',
+        content:
+          'She married Thomas in 1958 and raised Robert and David in Portland, where her kitchen ' +
+          'became the gravitational center of the neighborhood.',
+      },
+      {
+        heading: 'Later Years',
+        content:
+          'Known for her knitting and ruthless crossword speed, Margaret spent her later years ' +
+          'surrounded by grandchildren, teaching each of them her secret cinnamon-roll recipe.',
+      },
+    ],
+    answers: [],
+    progressSummary: '78% of her story told · 5 voices · 42 memories',
+  };
+}
+
+export function getMockStoryAnswers(
+  personId: string,
+): { question: string; answer: string; answeredBy: string; date: string | null }[] {
+  if (personId !== 'person-002') return [];
+  const daysAgo = (n: number): string => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - n);
+    return d.toISOString();
+  };
+  return [
+    {
+      question: 'What was her first job?',
+      answer: 'Linda taught third grade for 34 years — she still gets letters from students.',
+      answeredBy: 'Robert Walker',
+      date: daysAgo(12),
+    },
+    {
+      question: 'What is a family tradition she started?',
+      answer: 'Sunday pancake breakfasts, every week without fail since 1985.',
+      answeredBy: 'Sarah Walker',
+      date: daysAgo(30),
+    },
+    {
+      question: 'What does she love to do most?',
+      answer: 'Being in her garden — her roses have won the neighborhood contest twice.',
+      answeredBy: 'Alex Walker',
+      date: daysAgo(45),
+    },
+  ];
+}
+
+export function getMockStoryQuestions(_personId: string): { category: string; text: string }[] {
+  return [
+    { category: 'CHILDHOOD', text: 'What games did they love to play as a child?' },
+    { category: 'CHILDHOOD', text: 'What was their childhood home like?' },
+    { category: 'CAREER', text: 'What was their proudest professional moment?' },
+    { category: 'RELATIONSHIPS', text: 'How did they meet their partner?' },
+    { category: 'TRADITIONS', text: 'What holiday tradition matters most to them?' },
+  ];
+}
+
+export function getMockStoryProgress(_personId: string): string {
+  return '12 of 40 questions answered (30%) · 3 contributors';
+}
+
+export function getMockWishlists(personId: string): WishlistSummary[] {
+  if (personId === 'person-005') {
+    return [
+      {
+        title: "Sarah's Wishlist",
+        description: 'Ideas for birthdays and holidays',
+        items: [
+          {
+            name: 'Watercolor field kit',
+            note: 'Prefers warm tones',
+            url: 'https://example.com/watercolor-kit',
+            priceEstimate: '$45',
+            isPurchased: false,
+          },
+          {
+            name: 'Trail running vest',
+            note: 'Size M',
+            url: null,
+            priceEstimate: '$120',
+            isPurchased: false,
+          },
+          {
+            name: 'Pour-over coffee set',
+            note: null,
+            url: null,
+            priceEstimate: '$35',
+            isPurchased: true,
+          },
+        ],
+      },
+    ];
+  }
+  if (personId === 'person-010') {
+    return [
+      {
+        title: "Max's Wishlist",
+        description: null,
+        items: [
+          {
+            name: 'Dinosaur encyclopedia',
+            note: 'He already has the pocket edition',
+            url: null,
+            priceEstimate: '$25',
+            isPurchased: false,
+          },
+        ],
+      },
+    ];
+  }
+  return [];
+}
+
+export function getMockFeedPosts(): FeedPost[] {
+  const daysAgo = (n: number): string => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - n);
+    return d.toISOString();
+  };
+  return [
+    {
+      postId: 'post-101',
+      authorDisplayName: 'Sarah Walker',
+      content:
+        'Photos from our weekend hike at Eagle Creek Trail — the waterfalls were incredible!',
+      createdAt: daysAgo(1),
+      hasMedia: true,
+    },
+    {
+      postId: 'post-102',
+      authorDisplayName: 'Linda Walker',
+      content:
+        'Finished "The Midnight Library" — highly recommend it for the next family book swap.',
+      createdAt: daysAgo(2),
+      hasMedia: false,
+    },
+    {
+      postId: 'post-103',
+      authorDisplayName: 'Jordan Rivera',
+      content: "Max's first swimming lesson today. He did not want to get out of the pool.",
+      createdAt: daysAgo(3),
+      hasMedia: true,
+    },
+    {
+      postId: 'post-104',
+      authorDisplayName: 'Robert Walker',
+      content: 'Throwback to the lake trip last summer — who is in for Tahoe this year?',
+      createdAt: daysAgo(40),
+      hasMedia: true,
+    },
+    {
+      postId: 'post-105',
+      authorDisplayName: 'David Walker',
+      content:
+        'Lisbon was amazing. The food, the music, the tiles — already planning a return trip.',
+      createdAt: daysAgo(90),
+      hasMedia: false,
+    },
+    {
+      postId: 'post-106',
+      authorDisplayName: 'Emily Walker',
+      content: 'Our volleyball team took second at regionals!',
+      createdAt: daysAgo(200),
+      hasMedia: true,
+    },
+    {
+      postId: 'post-107',
+      authorDisplayName: 'Sarah Walker',
+      content: 'Painted the lake at sunrise during the cabin trip. One of my favorites so far.',
+      createdAt: daysAgo(400),
+      hasMedia: true,
+    },
+  ];
 }
 
 export function getMockBirthdayCardContext(personId: string): BirthdayCardContext | null {
