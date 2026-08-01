@@ -13,18 +13,31 @@ reviewable increments. `config.useMock` (default `true`) keeps the spike runnabl
 Base path is `/api` (the servlet context). All calls send `Authorization: Bearer <token>` and are
 scoped server-side to the caller's family — we never pass another user's id to fetch their data.
 
-| Tool / client method                                                         | Real endpoint                                                          | Notes                                                                                                                           |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `getFamilyMembers` ✅ wired                                                  | `GET /me/v2/family?includeLabels=true`                                 | `GetFamilyResponseDTO { members:[{ user:UserDTO, up, down, neutralLabel, genderedLabel }] }`. Birthday rendered month-day only. |
-| `getUpcomingDates`                                                           | family birthdays (above) + `GET /events?timing=UPCOMING&page=0&size=…` | `Page<EventDTO>`; merge with derived birthdays.                                                                                 |
-| `getRecentActivity`                                                          | `GET /posts/feed?page=0&size=N`                                        | `Page<PostDTO>`; filter by `createdAt` client-side.                                                                             |
-| `getPersonProfile`                                                           | family member (above) + `GET /posts/users/{userId}`                    | Compose; redact contact info.                                                                                                   |
-| `getRelationshipBetween`                                                     | derive from the labeled family list                                    | `up`/`down` + `neutralLabel` already encode the relationship — no extra call.                                                   |
-| `getBirthdayCardContext`                                                     | `getPersonProfile` + recent activity for that person                   | Pure composition.                                                                                                               |
-| `findFamilyMember`, `answerFamilyDateQuestion`, `getMessageContextForPerson` | resolvers over the above                                               | No new endpoints.                                                                                                               |
+| Tool / client method                                                         | Real endpoint                                                                | Notes                                                                                                                           |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `getFamilyMembers` ✅ wired                                                  | `GET /me/v2/family?includeLabels=true`                                       | `GetFamilyResponseDTO { members:[{ user:UserDTO, up, down, neutralLabel, genderedLabel }] }`. Birthday rendered month-day only. |
+| `getUpcomingDates`                                                           | family birthdays (above) + `GET /events?timing=UPCOMING&page=0&size=…`       | `Page<EventDTO>`; merge with derived birthdays.                                                                                 |
+| `getRecentActivity`                                                          | `GET /posts/feed?page=0&size=N`                                              | `Page<PostDTO>`; filter by `createdAt` client-side.                                                                             |
+| `getPersonProfile`                                                           | family member (above) + `GET /posts/users/{userId}`                          | Compose; redact contact info.                                                                                                   |
+| `getRelationshipBetween`                                                     | derive from the labeled family list                                          | `up`/`down` + `neutralLabel` already encode the relationship — no extra call.                                                   |
+| `getBirthdayCardContext`                                                     | `getPersonProfile` + recent activity for that person                         | Pure composition.                                                                                                               |
+| `findFamilyMember`, `answerFamilyDateQuestion`, `getMessageContextForPerson` | resolvers over the above                                                     | No new endpoints.                                                                                                               |
+| `getUpcomingEvents`                                                          | `GET /events?timing=UPCOMING&page=0&size=N` + `GET /me`                      | RSVP status/counts derived from the EventDTO guest list — no per-event calls.                                                   |
+| `getMyTrips` / `getTripOverview`                                             | `GET /trips/mine`, `/trips/{id}` + `/roster` + `/travel-details` + `/events` | Pending-invite emails masked. ⚠ needs MCP allowlist expansion (below).                                                          |
+| `getLifeStory`                                                               | `GET /story/{userId}/life-story` → fallback `GET /story/{userId}/answers`    | Answers endpoint is an unpaged list — recency-sorted + capped client-side. ⚠ allowlist.                                         |
+| `getUnansweredStoryQuestions`                                                | `GET /story/questions?subjectId=…` + `GET /story/{userId}/progress`          | `/story/questions` already returns only the next _unanswered_ batch (≤5). ⚠ allowlist.                                          |
+| `getPersonWishlists`                                                         | `GET /wishlists/users/{userId}` + `GET /wishlists/{id}` (≤3)                 | List endpoint is summaries-only; items come from per-wishlist detail. ⚠ allowlist.                                              |
+| `getFeedPosts` (search_family_memories)                                      | `GET /posts/feed?page=0..1&size=50` (≤100 posts)                             | Client-side keyword filter; server-side search is a future upgrade.                                                             |
+| `whats_new`                                                                  | composition of `getRecentActivity` + `getUpcomingDates`                      | No new endpoints.                                                                                                               |
 
 Most tools are resolvers over **three primitives**: family list, upcoming events, recent feed.
 Wiring those three real lights up nearly everything.
+
+> **⚠ kinnectd-api allowlist:** `McpTokenAuthenticationFilter.READ_ONLY_PATHS` currently permits
+> only `/me`, `/me/v2/family`, `/posts/feed`, `/posts/users/*`, `/events`. The trips
+> (`/trips/mine`, `/trips/*`), story (`/story/**`), and wishlist (`/wishlists/**`) endpoints used
+> by the newer tools need to be added there (GET-only) before those tools work with live MCP
+> tokens — until then they return a friendly error in live mode. Mock mode is unaffected.
 
 ## Phases
 
