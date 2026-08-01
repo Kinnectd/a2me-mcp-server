@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApiHttpError } from '../client/a2me-api-client.js';
 import { requireAuth } from '../auth/auth-context.js';
 import { A2MeApiClient } from '../client/a2me-api-client.js';
 import { config } from '../config.js';
@@ -24,6 +25,7 @@ function messageResult(message: string, tripNames: string[] = []) {
 export async function getTripOverview(input: z.infer<typeof getTripOverviewSchema>) {
   requireAuth();
   const client = new A2MeApiClient(config.a2meApiUrl, config.a2meAuthToken);
+  try {
   const trips = await client.getMyTrips();
 
   let selected: TripSummary | undefined;
@@ -71,7 +73,24 @@ export async function getTripOverview(input: z.infer<typeof getTripOverviewSchem
       },
     ],
   };
+  } catch (err) {
+    if (err instanceof ApiHttpError && err.status === 403) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              error:
+                'The server declined access to this data (permission denied) — this is an access problem, not empty data. If this connection is new, the A2Me API may not have rolled out access for this tool yet.',
+            }),
+          },
+        ],
+      };
+    }
+    throw err;
+  }
 }
+
 
 export const getTripOverviewToolDefinition = {
   name: 'get_trip_overview',

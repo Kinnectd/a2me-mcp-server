@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApiHttpError } from '../client/a2me-api-client.js';
 import { requireAuth } from '../auth/auth-context.js';
 import { A2MeApiClient } from '../client/a2me-api-client.js';
 import { config } from '../config.js';
@@ -11,6 +12,7 @@ export const getPersonWishlistSchema = z.object({
 export async function getPersonWishlist(input: z.infer<typeof getPersonWishlistSchema>) {
   const auth = requireAuth();
   const client = new A2MeApiClient(config.a2meApiUrl, config.a2meAuthToken);
+  try {
 
   const resolved = await resolvePersonInput(client, auth.userId, input.personName);
   if (!resolved.ok) {
@@ -47,7 +49,24 @@ export async function getPersonWishlist(input: z.infer<typeof getPersonWishlistS
       },
     ],
   };
+  } catch (err) {
+    if (err instanceof ApiHttpError && err.status === 403) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({
+              error:
+                'The server declined access to this data (permission denied) — this is an access problem, not empty data. If this connection is new, the A2Me API may not have rolled out access for this tool yet.',
+            }),
+          },
+        ],
+      };
+    }
+    throw err;
+  }
 }
+
 
 export const getPersonWishlistToolDefinition = {
   name: 'get_person_wishlist',

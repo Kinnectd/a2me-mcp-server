@@ -607,13 +607,18 @@ export class A2MeApiClient {
     return { id: me.id, displayName: displayNameOf(me) };
   }
 
-  /** Runs a GET but maps 403/404 to null — for optional resources (life story, travel details)
-   * where "not there / not visible" is an expected answer, not an error. */
-  private async getOptional<T>(path: string): Promise<T | null> {
+  /** Runs a GET but maps "expected absence" to null. 404 is always null ("doesn't exist").
+   * 403 is null only when `forbiddenAsNull` (sub-resources where partial data is fine);
+   * primary lookups pass false so a permission denial surfaces as ApiHttpError instead of
+   * masquerading as empty data (e.g. "wishlist is empty" when the server actually said no). */
+  private async getOptional<T>(path: string, opts: { forbiddenAsNull?: boolean } = {}): Promise<T | null> {
+    const { forbiddenAsNull = true } = opts;
     try {
       return await this.get<T>(path);
     } catch (err) {
-      if (err instanceof ApiHttpError && (err.status === 403 || err.status === 404)) return null;
+      if (err instanceof ApiHttpError && (err.status === 404 || (forbiddenAsNull && err.status === 403))) {
+        return null;
+      }
       throw err;
     }
   }
@@ -677,7 +682,7 @@ export class A2MeApiClient {
     if (config.useMock) {
       return getMockTripOverview(tripId);
     }
-    const trip = await this.getOptional<ApiTripDTO>(`/trips/${tripId}`);
+    const trip = await this.getOptional<ApiTripDTO>(`/trips/${tripId}`, { forbiddenAsNull: false });
     if (!trip) return null;
     const [roster, travel, events] = await Promise.all([
       this.getOptional<ApiTripRosterDTO>(`/trips/${tripId}/roster`),
@@ -760,7 +765,7 @@ export class A2MeApiClient {
       return { subjectName, kind: 'answers', chapters: [], answers, progressSummary: null };
     }
 
-    const story = await this.getOptional<ApiLifeStoryDTO>(`/story/${personId}/life-story`);
+    const story = await this.getOptional<ApiLifeStoryDTO>(`/story/${personId}/life-story`, { forbiddenAsNull: false });
     if (story && story.chapters.length > 0) {
       const p = story.progress;
       return {
@@ -842,7 +847,7 @@ export class A2MeApiClient {
     if (config.useMock) {
       return getMockWishlists(personId);
     }
-    const lists = (await this.getOptional<ApiWishlistDTO[]>(`/wishlists/users/${personId}`)) ?? [];
+    const lists = (await this.getOptional<ApiWishlistDTO[]>(`/wishlists/users/${personId}`, { forbiddenAsNull: false })) ?? [];
     const results: WishlistSummary[] = [];
     for (const list of lists.slice(0, 3)) {
       const detail = await this.getOptional<ApiWishlistDetailDTO>(`/wishlists/${list.id}`);

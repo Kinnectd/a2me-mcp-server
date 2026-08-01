@@ -36,9 +36,11 @@ describe('whats_new', () => {
   });
 
   it('only includes posts within the window', async () => {
+    // Cutoff computed BEFORE the call: mock timestamps are generated during execution, so a
+    // post-call Date.now() could race ahead of them and flake.
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     const result = await whatsNew({ sinceDays: 1 });
     const parsed = JSON.parse(result.content[0].text);
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
 
     for (const post of parsed.recentPosts) {
       expect(new Date(post.date).getTime()).toBeGreaterThanOrEqual(cutoff);
