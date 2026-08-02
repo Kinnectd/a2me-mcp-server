@@ -12,6 +12,13 @@ import { getBirthdayCardContext } from './tools/get-birthday-card-context.js';
 import { findFamilyMember } from './tools/find-family-member.js';
 import { answerFamilyDateQuestion } from './tools/answer-family-date-question.js';
 import { getMessageContextForPerson } from './tools/get-message-context-for-person.js';
+import { getUpcomingEvents } from './tools/get-upcoming-events.js';
+import { getTripOverview } from './tools/get-trip-overview.js';
+import { getLifeStory } from './tools/get-life-story.js';
+import { getUnansweredStoryQuestions } from './tools/get-unanswered-story-questions.js';
+import { getPersonWishlist } from './tools/get-person-wishlist.js';
+import { searchFamilyMemories } from './tools/search-family-memories.js';
+import { whatsNew } from './tools/whats-new.js';
 import {
   WIDGETS,
   widgetForTool,
@@ -242,6 +249,147 @@ export function createServer(): McpServer {
           tone: input.tone,
         }),
       ),
+  );
+
+  // Tool 10: Get upcoming events
+  server.registerTool(
+    'get_upcoming_events',
+    {
+      title: 'Get upcoming events',
+      description:
+        "Upcoming events the user is invited to or hosting, with dates and their RSVP status. Use for questions like 'what's coming up' or 'when is the reunion'.",
+      inputSchema: {
+        limit: z.number().min(1).max(10).optional().describe('Max events to return (default: 5)'),
+      },
+      annotations: { title: 'Get upcoming events', ...readOnlyExternal },
+    },
+    async (input) =>
+      handle('upcoming events', () => getUpcomingEvents({ limit: input.limit ?? 5 })),
+  );
+
+  // Tool 11: Get trip overview
+  server.registerTool(
+    'get_trip_overview',
+    {
+      title: 'Get trip overview',
+      description:
+        "Everything about a family trip in one view: dates, destination, who's coming (with RSVP and pending invites), each person's travel details (flights and lodging — e.g. 'when does Marcia land'), and the itinerary of linked events.",
+      inputSchema: {
+        tripName: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('Trip name (fuzzy). Omit to use the only upcoming trip.'),
+      },
+      annotations: { title: 'Get trip overview', ...readOnlyExternal },
+    },
+    async (input) => handle('trip overview', () => getTripOverview({ tripName: input.tripName })),
+  );
+
+  // Tool 12: Get life story
+  server.registerTool(
+    'get_life_story',
+    {
+      title: 'Get life story',
+      description:
+        "The written life story (biography chapters) of a family member, built from family memories. Use for 'tell me about grandma's childhood', writing toasts/speeches/eulogies, or family history questions.",
+      inputSchema: {
+        personName: z
+          .string()
+          .min(1)
+          .describe('Family member name or relationship (fuzzy), or "me"'),
+      },
+      annotations: { title: 'Get life story', ...readOnlyExternal },
+    },
+    async (input) => handle('life story', () => getLifeStory({ personName: input.personName })),
+  );
+
+  // Tool 13: Get unanswered story questions
+  server.registerTool(
+    'get_unanswered_story_questions',
+    {
+      title: 'Get unanswered story questions',
+      description:
+        "Story questions about a family member that nobody has answered yet — perfect for 'what should I ask Grandpa when I visit' interview prep.",
+      inputSchema: {
+        personName: z
+          .string()
+          .min(1)
+          .describe('Family member name or relationship (fuzzy), or "me"'),
+      },
+      annotations: { title: 'Get unanswered story questions', ...readOnlyExternal },
+    },
+    async (input) =>
+      handle('story questions', () =>
+        getUnansweredStoryQuestions({ personName: input.personName }),
+      ),
+  );
+
+  // Tool 14: Get person wishlist
+  server.registerTool(
+    'get_person_wishlist',
+    {
+      title: 'Get person wishlist',
+      description: "A family member's wishlist — for gift ideas and birthday/holiday planning.",
+      inputSchema: {
+        personName: z.string().min(1).describe('Family member name or relationship (fuzzy)'),
+      },
+      annotations: { title: 'Get person wishlist', ...readOnlyExternal },
+    },
+    async (input) => handle('wishlist', () => getPersonWishlist({ personName: input.personName })),
+  );
+
+  // Tool 15: Search family memories
+  server.registerTool(
+    'search_family_memories',
+    {
+      title: 'Search family memories',
+      description:
+        "Search recent family posts and memories by keyword, optionally filtered to one person or a time window. Use for 'what did we do last summer' or 'find the post about the lake trip'.",
+      inputSchema: {
+        query: z.string().min(1).describe('Keywords to search for'),
+        personName: z
+          .string()
+          .min(1)
+          .optional()
+          .describe('Optionally restrict to posts by this family member (fuzzy name)'),
+        sinceDays: z
+          .number()
+          .min(1)
+          .max(3650)
+          .optional()
+          .describe('Days back to search (default: 365)'),
+      },
+      annotations: { title: 'Search family memories', ...readOnlyExternal },
+    },
+    async (input) =>
+      handle('memory search', () =>
+        searchFamilyMemories({
+          query: input.query,
+          personName: input.personName,
+          sinceDays: input.sinceDays ?? 365,
+        }),
+      ),
+  );
+
+  // Tool 16: What's new
+  server.registerTool(
+    'whats_new',
+    {
+      title: "What's new",
+      description:
+        "A catch-up summary of what happened in the user's family recently plus what's coming up. Use when the user asks 'what did I miss' or 'catch me up'.",
+      inputSchema: {
+        sinceDays: z
+          .number()
+          .min(1)
+          .max(31)
+          .optional()
+          .describe('Days back to summarize (default: 7)'),
+      },
+      annotations: { title: "What's new", ...readOnlyExternal },
+    },
+    async (input) => handle('family catch-up', () => whatsNew({ sinceDays: input.sinceDays ?? 7 })),
   );
 
   // ChatGPT Apps SDK widget templates. Each is a `ui://` resource whose body is the
