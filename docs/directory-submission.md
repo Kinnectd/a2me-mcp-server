@@ -79,10 +79,13 @@ FAQ: <https://support.claude.com/en/articles/11596036>
 
 ### OAuth client mode (verified 2026-08-04)
 
-Scalekit's live metadata (`kinnectd.scalekit.com/.well-known/openid-configuration`)
-advertises **no `registration_endpoint`** — Dynamic Client Registration is not
-enabled on our tenant (`/oauth/register` 404s; `/connect/register` is a login
-page, not DCR). Two ways to satisfy the portal's Auth step:
+Scalekit's live discovery was probed 2026-08-04: RFC 8414 OAuth AS metadata
+(`/.well-known/oauth-authorization-server`, both tenant-root and issuer-path
+variants) returns **404**; only OIDC discovery
+(`kinnectd.scalekit.com/.well-known/openid-configuration`) serves, and it
+advertises **no `registration_endpoint`** — so Dynamic Client Registration is
+not enabled on our tenant (`/oauth/register` 404s; `/connect/register` is a
+login page, not DCR). Two ways to satisfy the portal's Auth step:
 
 1. **Enable DCR in the Scalekit dashboard** (their MCP-auth product supports it;
    look under the MCP/resource settings for a client-registration toggle). Cleanest —
