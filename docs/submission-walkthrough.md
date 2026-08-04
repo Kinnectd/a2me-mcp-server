@@ -22,7 +22,7 @@ role with "Directory management") can submit. A personal/Pro plan can't.
 3. **Start a submission** and use the values from `docs/directory-submission.md`:
    - **Connection URL:** `https://mcp.a2me.app/mcp` (Streamable HTTP)
    - **Auth:** OAuth 2.0 (the "Connect A2Me" flow is already live). The Auth step
-     asks _how_ clients register: our Scalekit tenant has **no DCR** today, so either
+     asks _how_ clients register: our Scalekit tenant has **no DCR (Dynamic Client Registration)** today, so either
      flip on client registration in the Scalekit dashboard first, or choose
      "static client ID held by Anthropic" and paste a client you create in Scalekit
      with redirect URI `https://claude.ai/api/mcp/auth_callback`

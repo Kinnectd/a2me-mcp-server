@@ -160,7 +160,7 @@ for social posts. Add more widgets later (person profile, activity feed) as desi
 
 - `https://mcp.a2me.app/mcp` — up (streamable HTTP)
 - `https://mcp.a2me.app/.well-known/oauth-protected-resource` — 200, points at Scalekit issuer, `family:read`
-- Scalekit `/.well-known/openid-configuration` — 200, PKCE `S256`; **no `registration_endpoint`**
+- Scalekit `/.well-known/openid-configuration` — 200, PKCE `S256`; **no `registration_endpoint`** (RFC 8414 `/.well-known/oauth-authorization-server` 404s at both tenant root and issuer path)
 - `https://a2me.app/privacy` — 200
 - `https://a2me.app/features/ai-integration` — 200 (example-prompts section pending web#691)
 - All 16 tools carry `title` + `readOnlyHint`/`destructiveHint`/`idempotentHint`/`openWorldHint`
