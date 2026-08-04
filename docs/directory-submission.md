@@ -97,9 +97,14 @@ login) is already live.
 ### Test account (portal "Test & Launch" step)
 
 Reviewers need credentials for a **fully populated** account on the URL we submit
-(prod). Proposal: seed a dedicated demo family in prod (e.g. `reviewer@a2me.app` +
-6–8 member family with posts, birthdays, a life story, a wishlist) — 🔴 Byron to
-approve prod seeding; then we script it with the api-helper.
+(prod). **Rule (Byron, 2026-08-04): we never script-seed prod — seeding is dev-only.**
+So the reviewer account must be created **through the product itself**, like any
+real family would: sign up `reviewer@a2me.app` in the prod app, then build a small
+demo family via the normal flows (managed accounts for the relatives, a few posts,
+birthdays, a life-story answer, a wishlist). ~30–45 min of in-app setup, done once;
+we can rehearse the exact click-path on dev first so the prod pass is quick.
+🔴 Byron creates it (or delegates); credentials then go only into the portal's
+Test & Launch step.
 
 **Escalation/status:** submissions dashboard in Claude.ai; email `mcp-review@anthropic.com`.
 
@@ -146,7 +151,7 @@ for social posts. Add more widgets later (person profile, activity feed) as desi
 6. 🔴 **Screenshots** — co-create: connect the prod (or dev) server in ChatGPT/Claude from a **family-having** account and capture 3–5 real responses (widgets + example prompts). `byron.walker@kinnectd.com` has no family on dev; use a populated account.
 7. 🔴 **Support contact** — confirm a monitored support email/URL for the listings.
 8. 🔴 **OAuth client mode** — enable DCR in Scalekit **or** create a static client for Anthropic (see Claude section above).
-9. 🔴 **Prod demo family** — approve seeding a reviewer account (see Test account above).
+9. 🔴 **Reviewer demo family (prod, product-created)** — no script seeding in prod (dev-only rule); build the reviewer family through the normal app flows (see Test account above).
 
 ### Live-endpoint verification (2026-08-04)
 

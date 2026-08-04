@@ -27,9 +27,10 @@ role with "Directory management") can submit. A personal/Pro plan can't.
      "static client ID held by Anthropic" and paste a client you create in Scalekit
      with redirect URI `https://claude.ai/api/mcp/auth_callback`
      (details: `directory-submission.md` → "OAuth client mode").
-   - **Test & Launch:** needs reviewer credentials for a populated prod account —
-     approve the demo-family seeding proposal first (`directory-submission.md` →
-     "Test account").
+   - **Test & Launch:** needs reviewer credentials for a populated prod account.
+     We never script-seed prod, so create `reviewer@a2me.app` through the normal
+     app flows and build its demo family in-product (`directory-submission.md` →
+     "Test account" has the checklist).
    - **Listing / Use cases / Company / Data handling:** paste the draft copy.
 4. **Walk all 11 steps** (Intro → Connection → Tools → Listing → Use Cases →
    Company → Auth → Data Handling → Test & Launch → Compliance → Review) and
