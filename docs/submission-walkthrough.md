@@ -21,7 +21,16 @@ role with "Directory management") can submit. A personal/Pro plan can't.
    **Submit a connector** (a.k.a. the submission portal).
 3. **Start a submission** and use the values from `docs/directory-submission.md`:
    - **Connection URL:** `https://mcp.a2me.app/mcp` (Streamable HTTP)
-   - **Auth:** OAuth 2.0 (the "Connect A2Me" flow is already live)
+   - **Auth:** OAuth 2.0 (the "Connect A2Me" flow is already live). The Auth step
+     asks _how_ clients register: our Scalekit tenant has **no DCR (Dynamic Client Registration)** today, so either
+     flip on client registration in the Scalekit dashboard first, or choose
+     "static client ID held by Anthropic" and paste a client you create in Scalekit
+     with redirect URI `https://claude.ai/api/mcp/auth_callback`
+     (details: `directory-submission.md` → "OAuth client mode").
+   - **Test & Launch:** needs reviewer credentials for a populated prod account.
+     We never script-seed prod, so create `reviewer@a2me.app` through the normal
+     app flows and build its demo family in-product (`directory-submission.md` →
+     "Test account" has the checklist).
    - **Listing / Use cases / Company / Data handling:** paste the draft copy.
 4. **Walk all 11 steps** (Intro → Connection → Tools → Listing → Use Cases →
    Company → Auth → Data Handling → Test & Launch → Compliance → Review) and
