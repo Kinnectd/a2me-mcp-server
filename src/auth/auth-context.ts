@@ -1,13 +1,14 @@
 import type { AuthContext } from '../types/index.js';
 
-// NOTE: This is NOT the production auth path. Real authentication happens in the
-// HTTP transport (Scalekit JWT verified by TokenVerifier before tool dispatch) and
-// again in kinnectd-api, which validates the forwarded bearer token and scopes all
-// data server-side. The real API client ignores the userId below; this context only
-// supplies a local identity for mock mode (stdio / A2ME_USE_MOCK=true).
+// NOTE: This is NOT the production auth path. Request authentication happens in the
+// HTTP transport via the pluggable TokenVerifier (ScalekitTokenVerifier in production;
+// a permissive DevTokenVerifier exists for local development) before tool dispatch,
+// and again in kinnectd-api, which validates the forwarded bearer token and scopes all
+// data server-side. Tools still read this context's userId for local filtering and
+// resolution, but live API scoping comes from the bearer token, not this ID.
 
 export function getAuthContext(): AuthContext {
-  // Mock identity for local development; unused when serving real data
+  // Mock identity; live data access is scoped by the per-request bearer token
   return {
     userId: 'user-001',
     displayName: 'Alex Walker',
