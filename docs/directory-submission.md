@@ -24,7 +24,7 @@ Status legend: ✅ done · ⏳ in progress / draft ready · 🔴 needs Byron (ac
 | Support / contact channel                                  | ⏳     | Using `privacy@a2me.app` + SECURITY.md. Confirm a monitored support address/URL.                              |
 | Tool result ≤ 25k tokens, handler ≤ 5 min (Claude limits)  | ✅     | Responses are small JSON; no long-running handlers                                                            |
 | Published to MCP registry                                  | ✅     | See `reference-mcp-registry-publish`                                                                          |
-| Public docs URL shows ≥3 example prompts (Claude req.)     | ⏳     | a2me-web-app#691 adds a 6-prompt "Things to try" section to `/features/ai-integration` (was 1 prompt).        |
+| Public docs URL shows ≥3 example prompts (Claude req.)     | ✅     | a2me-web-app#691 shipped — <https://a2me.app/features/ai-integration> serves a live 6-prompt "Things to try" section. |
 
 ### Listing copy (draft — reuse across both directories)
 

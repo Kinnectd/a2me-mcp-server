@@ -1,11 +1,13 @@
 import type { AuthContext } from '../types/index.js';
 
-// TODO: Replace with real OAuth/token validation against A2Me API
-// In production, this will validate the user's session token against
-// the A2Me authentication service (Firebase Auth + Spring Security).
+// NOTE: This is NOT the production auth path. Real authentication happens in the
+// HTTP transport (Scalekit JWT verified by TokenVerifier before tool dispatch) and
+// again in kinnectd-api, which validates the forwarded bearer token and scopes all
+// data server-side. The real API client ignores the userId below; this context only
+// supplies a local identity for mock mode (stdio / A2ME_USE_MOCK=true).
 
 export function getAuthContext(): AuthContext {
-  // Mock: always returns authenticated user for local development
+  // Mock identity for local development; unused when serving real data
   return {
     userId: 'user-001',
     displayName: 'Alex Walker',
