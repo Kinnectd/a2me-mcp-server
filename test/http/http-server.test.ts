@@ -60,6 +60,15 @@ describe('MCP HTTP app', () => {
     }
   });
 
+  it('answers GET/DELETE on the MCP endpoint with 405 + Allow: POST (no SSE stream offered)', async () => {
+    const get = await fetch(`${baseUrl}/mcp`, { headers: { Accept: 'text/event-stream' } });
+    expect(get.status).toBe(405);
+    expect(get.headers.get('allow')).toBe('POST');
+
+    const del = await fetch(`${baseUrl}/mcp`, { method: 'DELETE' });
+    expect(del.status).toBe(405);
+  });
+
   it('challenges an unauthenticated MCP request with a 401 + resource_metadata pointer', async () => {
     const res = await fetch(`${baseUrl}/mcp`, {
       method: 'POST',
