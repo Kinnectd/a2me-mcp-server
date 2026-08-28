@@ -47,9 +47,11 @@ describe('ScalekitTokenVerifier', () => {
     expect(await verifier.verify('not-a-jwt')).toBeNull();
   });
 
-  // Regression: Scalekit discovery/JWKS live under the per-resource URL (MCP_AUTH_ISSUER), but the
-  // tokens it mints carry the *base* issuer from the AS metadata. The verifier must check `iss`
-  // against the metadata issuer, not the discovery URL — otherwise every token 401s.
+  // Regression: Scalekit stamps `iss` inconsistently — its resource metadata has advertised both
+  // the tenant base origin AND the per-resource URL over time, and tokens minted for some clients
+  // (observed: ChatGPT's DCR flow) carry the base origin regardless of what the metadata declares.
+  // The verifier accepts any of {metadata issuer, discovery URL, discovery origin}: all the same
+  // trust root (signature = tenant JWKS, audience pins the resource).
   describe('issuer from AS metadata (discovery path)', () => {
     const DISCOVERY_URL = 'https://kinnectd.scalekit.dev/resources/res_test';
     const DECLARED_ISSUER = 'https://kinnectd.scalekit.dev';
@@ -96,10 +98,44 @@ describe('ScalekitTokenVerifier', () => {
       expect(await verifier.verify(token)).toEqual({ token, scopes: ['family:read'] });
     });
 
-    it('still rejects a token whose iss is the (wrong) discovery URL', async () => {
+    it('accepts a token whose iss is the per-resource discovery URL', async () => {
       await stubDiscovery();
       const verifier = new ScalekitTokenVerifier(DISCOVERY_URL, AUDIENCE);
       const token = await signWith(DISCOVERY_URL);
+      expect(await verifier.verify(token)).toEqual({ token, scopes: ['family:read'] });
+    });
+
+    it('accepts iss = tenant base origin even when metadata declares the per-resource URL', async () => {
+      // The live ChatGPT case: metadata issuer = per-resource URL, token iss = base origin.
+      const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string | URL) => {
+          const u = String(url);
+          if (u.endsWith('/.well-known/oauth-authorization-server')) {
+            return new Response(JSON.stringify({ issuer: DISCOVERY_URL, jwks_uri: JWKS_URI }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            });
+          }
+          if (u === JWKS_URI) {
+            return new Response(JSON.stringify({ keys: [jwk] }), {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            });
+          }
+          throw new Error(`unexpected fetch: ${u}`);
+        }),
+      );
+      const verifier = new ScalekitTokenVerifier(DISCOVERY_URL, AUDIENCE);
+      const token = await signWith('https://kinnectd.scalekit.dev');
+      expect(await verifier.verify(token)).toEqual({ token, scopes: ['family:read'] });
+    });
+
+    it('rejects a token from an unrelated issuer', async () => {
+      await stubDiscovery();
+      const verifier = new ScalekitTokenVerifier(DISCOVERY_URL, AUDIENCE);
+      const token = await signWith('https://evil.example');
       expect(await verifier.verify(token)).toBeNull();
     });
   });
