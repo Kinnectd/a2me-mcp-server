@@ -76,7 +76,7 @@ export function createServer(): McpServer {
     readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
-    openWorldHint: true,
+    openWorldHint: false,
   } as const;
 
   // Tool 1: Get family members

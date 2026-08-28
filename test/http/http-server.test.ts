@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createHttpApp } from '../../src/http/http-server.js';
 import { DevTokenVerifier } from '../../src/auth/token-verifier.js';
+import { config } from '../../src/config.js';
 
 describe('MCP HTTP app', () => {
   let server: Server;
@@ -40,6 +41,23 @@ describe('MCP HTTP app', () => {
     expect(res.status).toBe(200);
     const md = (await res.json()) as { scopes_supported: string[] };
     expect(md.scopes_supported).toEqual(['family:read']);
+  });
+
+  it('serves the OpenAI Apps challenge token when configured, 404 when not', async () => {
+    const original = config.openaiAppsChallengeToken;
+    try {
+      config.openaiAppsChallengeToken = '';
+      const missing = await fetch(`${baseUrl}/.well-known/openai-apps-challenge`);
+      expect(missing.status).toBe(404);
+
+      config.openaiAppsChallengeToken = 'test-challenge-token-123';
+      const res = await fetch(`${baseUrl}/.well-known/openai-apps-challenge`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/plain');
+      expect(await res.text()).toBe('test-challenge-token-123');
+    } finally {
+      config.openaiAppsChallengeToken = original;
+    }
   });
 
   it('challenges an unauthenticated MCP request with a 401 + resource_metadata pointer', async () => {
