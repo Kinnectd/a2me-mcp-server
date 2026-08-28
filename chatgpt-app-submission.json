@@ -1,0 +1,272 @@
+{
+  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "A2Me",
+    "subtitle": "Family context and memories",
+    "description": "A2Me helps users stay connected with their family by retrieving privacy-redacted family profiles, relationships, important dates, recent activity, memories, trips, life stories, wishlists, and context for thoughtful messages.",
+    "category": "LIFESTYLE"
+  },
+  "tools": {
+    "get_family_members": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves the authenticated user's family roster and relationship labels.",
+        "open_world_justification": "Does not create, publish, send, or modify data in A2Me or any external service.",
+        "destructive_justification": "Does not delete, overwrite, revoke access, or perform irreversible actions."
+      }
+    },
+    "get_upcoming_family_dates": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves upcoming birthdays, anniversaries, and family events.",
+        "open_world_justification": "Does not create, update, or publish calendar events or other external data.",
+        "destructive_justification": "Does not delete or irreversibly change dates, events, or family data."
+      }
+    },
+    "get_recent_family_activity": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves recent family posts and activity summaries.",
+        "open_world_justification": "Does not post, react, message, or otherwise change external state.",
+        "destructive_justification": "Does not remove or overwrite family activity."
+      }
+    },
+    "get_person_profile": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves a family member's privacy-redacted profile and activity summary.",
+        "open_world_justification": "Does not edit profiles or send information to external services.",
+        "destructive_justification": "Does not delete or overwrite profile information."
+      }
+    },
+    "get_relationship_between_people": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only looks up how two family members are connected.",
+        "open_world_justification": "Does not create or change relationships in A2Me or elsewhere.",
+        "destructive_justification": "Does not remove relationships or perform irreversible actions."
+      }
+    },
+    "get_birthday_card_context": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves interests, memories, and tone suggestions for drafting a birthday card.",
+        "open_world_justification": "Does not send, publish, or save a birthday card.",
+        "destructive_justification": "Does not delete or overwrite any family content."
+      }
+    },
+    "find_family_member": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only searches the authenticated user's family roster by name or relationship.",
+        "open_world_justification": "Does not add contacts, invite people, or change external systems.",
+        "destructive_justification": "Does not remove or modify family members."
+      }
+    },
+    "answer_family_date_question": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves and filters privacy-redacted family dates to answer a question.",
+        "open_world_justification": "Does not create reminders, events, or other external changes.",
+        "destructive_justification": "Does not delete or alter family dates."
+      }
+    },
+    "get_message_context_for_person": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves family context and suggestions to help draft a message.",
+        "open_world_justification": "Does not send or publish the drafted message.",
+        "destructive_justification": "Does not delete, overwrite, or irreversibly modify content."
+      }
+    },
+    "get_upcoming_events": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves upcoming events and the user's RSVP status.",
+        "open_world_justification": "Does not create events, invite guests, or change RSVPs.",
+        "destructive_justification": "Does not cancel, delete, or overwrite events."
+      }
+    },
+    "get_trip_overview": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves a family trip's itinerary, roster, travel details, and lodging summary.",
+        "open_world_justification": "Does not book travel, change RSVPs, or update trip information.",
+        "destructive_justification": "Does not cancel reservations or remove trip data."
+      }
+    },
+    "get_life_story": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves an existing family member life story and related memories.",
+        "open_world_justification": "Does not publish, edit, or share the life story externally.",
+        "destructive_justification": "Does not delete or overwrite story content."
+      }
+    },
+    "get_unanswered_story_questions": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves unanswered family-story questions and progress information.",
+        "open_world_justification": "Does not submit answers, contact family members, or update story progress.",
+        "destructive_justification": "Does not remove questions, answers, or story data."
+      }
+    },
+    "get_person_wishlist": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only retrieves wishlists and items shared with the authenticated user.",
+        "open_world_justification": "Does not purchase items, open transactions, or change wishlists.",
+        "destructive_justification": "Does not delete wishlist items or perform irreversible purchases."
+      }
+    },
+    "search_family_memories": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only searches recent family posts and returns matching privacy-scoped excerpts.",
+        "open_world_justification": "Does not publish, edit, react to, or share family posts.",
+        "destructive_justification": "Does not delete or overwrite family memories."
+      }
+    },
+    "whats_new": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Only combines recent family activity with upcoming dates into a catch-up summary.",
+        "open_world_justification": "Does not post, message, schedule, or modify anything externally.",
+        "destructive_justification": "Does not delete or overwrite family data."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "List upcoming family dates within a defined window.",
+      "user_prompt": "What birthdays and family events are coming up in the next 30 days?",
+      "file_attachment_urls": null,
+      "tools_triggered": "get_upcoming_family_dates",
+      "expected_output": "Returns upcoming birthdays, anniversaries, and events within 30 days using privacy-redacted dates.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Resolve a relative and retrieve useful context for a thoughtful message.",
+      "user_prompt": "Help me write a warm thank-you message to my grandmother based on what she likes.",
+      "file_attachment_urls": null,
+      "tools_triggered": "get_message_context_for_person",
+      "expected_output": "Returns the matched family member's relationship, interests, and appropriate suggestions without sending a message.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Catch the user up on recent family activity and near-term dates.",
+      "user_prompt": "Catch me up on what happened in my family this week and what's coming next.",
+      "file_attachment_urls": null,
+      "tools_triggered": "whats_new",
+      "expected_output": "Returns a concise summary of recent family activity plus upcoming important dates.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Retrieve a family trip overview by its fuzzy name.",
+      "user_prompt": "Show me the overview for our reunion trip, including who is coming and the itinerary.",
+      "file_attachment_urls": null,
+      "tools_triggered": "get_trip_overview",
+      "expected_output": "Returns the matching trip's dates, destination, roster, travel details, lodging, and linked events, or asks for clarification if ambiguous.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Search family memories using a keyword and family-member filter.",
+      "user_prompt": "Find family memories about the lake from Sarah within the last two years.",
+      "file_attachment_urls": null,
+      "tools_triggered": "search_family_memories",
+      "expected_output": "Returns up to eight matching family-post excerpts from the requested person and time window.",
+      "expected_output_url": null
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Do not trigger for a request to send an external message.",
+      "user_prompt": "Send my grandmother a text message saying I will call tonight.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked to send the message because A2Me only retrieves context and cannot send communications.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for unrelated public web research.",
+      "user_prompt": "Find today's top technology news stories.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because public news research is outside its family-context workflows.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for changing family data.",
+      "user_prompt": "Change my sister's birthday in A2Me to May 12.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked to edit the birthday because its tools are read-only.",
+      "expected_output_url": null
+    }
+  ]
+}

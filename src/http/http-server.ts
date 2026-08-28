@@ -80,6 +80,16 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
   app.get('/', landingHandler);
   app.get('/llms.txt', llmsTxtHandler);
 
+  // OpenAI Apps domain verification: plain-text org token OpenAI fetches unauthenticated
+  // to prove we control this hostname. 404s until OPENAI_APPS_CHALLENGE_TOKEN is set.
+  app.get('/.well-known/openai-apps-challenge', (_req: Request, res: Response) => {
+    if (!config.openaiAppsChallengeToken) {
+      res.status(404).json({ error: 'not_configured' });
+      return;
+    }
+    res.type('text/plain').send(config.openaiAppsChallengeToken);
+  });
+
   // On a missing/invalid token, challenge with a pointer to the resource metadata so the MCP
   // client knows where to start the OAuth flow (per the MCP authorization spec).
   const requireBearer = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

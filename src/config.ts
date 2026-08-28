@@ -36,6 +36,10 @@ export const config = {
   authServerIssuer: process.env.MCP_AUTH_ISSUER || '',
   // Expected token audience — the MCP server's resource URL. Defaults to the public URL.
   authAudience: process.env.MCP_AUTH_AUDIENCE || mcpPublicUrl,
+  // OpenAI Apps domain-verification token, served plain-text at
+  // /.well-known/openai-apps-challenge (route 404s when unset). Public by design —
+  // OpenAI fetches it unauthenticated to prove we control the MCP hostname.
+  openaiAppsChallengeToken: process.env.OPENAI_APPS_CHALLENGE_TOKEN || '',
   serverName: 'a2me-family-context',
   serverVersion: '0.1.0',
 };
