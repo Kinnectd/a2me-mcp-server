@@ -109,6 +109,16 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
     next();
   };
 
+  // Streamable HTTP without SSE: the spec says a server that doesn't offer a GET event
+  // stream answers GET/DELETE on the MCP endpoint with 405 + Allow. Without this, Express
+  // 404s the method — which MCP scanners (e.g. OpenAI's SSE probe) read as "wrong URL"
+  // and fail the whole scan, instead of falling back to POST-only mode.
+  const methodNotAllowed = (_req: Request, res: Response): void => {
+    res.status(405).set('Allow', 'POST').json({ error: 'method_not_allowed' });
+  };
+  app.get(MCP_PATH, methodNotAllowed);
+  app.delete(MCP_PATH, methodNotAllowed);
+
   app.post(MCP_PATH, requireBearer, async (req: Request, res: Response) => {
     const a2meToken = (res.locals.a2meToken as string | undefined) ?? '';
     // Attribution forwarded to kinnectd-api alongside each tool's API call:
