@@ -58,11 +58,12 @@ export class DevTokenVerifier implements TokenVerifier {
 export class ScalekitTokenVerifier implements TokenVerifier {
   readonly name = 'scalekit';
   private keys?: KeyInput;
-  // The issuer the AS actually stamps on tokens, read from its published metadata. Scalekit
-  // advertises the *base* issuer (e.g. https://kinnectd.scalekit.dev) even though discovery and
-  // JWKS live under the per-resource URL in MCP_AUTH_ISSUER — so the `iss` claim must be checked
-  // against this, not the discovery URL, or every token is rejected.
-  private tokenIssuer?: string;
+  // Issuer values the AS actually stamps on tokens. Scalekit is inconsistent here: its resource
+  // metadata advertises the per-resource URL as `issuer`, but tokens minted for some clients
+  // (observed: ChatGPT's DCR flow) carry the *tenant base* origin as `iss` instead. Both come
+  // from the same trust root — the signature is verified against the tenant JWKS and the
+  // audience check pins tokens to this resource — so accept either form.
+  private tokenIssuers?: string[];
 
   constructor(
     private readonly issuer: string,
@@ -83,7 +84,9 @@ export class ScalekitTokenVerifier implements TokenVerifier {
     }
     const meta = (await res.json()) as { jwks_uri?: string; issuer?: string };
     if (!meta.jwks_uri) throw new Error('Scalekit AS metadata missing jwks_uri');
-    this.tokenIssuer = meta.issuer ?? this.issuer;
+    this.tokenIssuers = [
+      ...new Set([meta.issuer ?? this.issuer, this.issuer, new URL(this.issuer).origin]),
+    ];
     this.keys = createRemoteJWKSet(new URL(meta.jwks_uri));
     return this.keys;
   }
@@ -93,7 +96,7 @@ export class ScalekitTokenVerifier implements TokenVerifier {
     try {
       const keys = await this.resolveKeys();
       const { payload } = await jwtVerify(bearerToken, keys as JWTVerifyGetKey, {
-        issuer: this.tokenIssuer ?? this.issuer,
+        issuer: this.tokenIssuers ?? this.issuer,
         audience: this.audience,
       });
       return { token: bearerToken, scopes: extractScopes(payload) };
@@ -110,7 +113,7 @@ export class ScalekitTokenVerifier implements TokenVerifier {
           console.warn(
             `[scalekit] token claims: aud=${JSON.stringify(claims.aud)} iss=${JSON.stringify(claims.iss)} ` +
               `hasEmail=${claims.email != null} emailVerified=${JSON.stringify(claims.email_verified)} ` +
-              `| expected aud=${JSON.stringify(this.audience)} iss=${JSON.stringify(this.tokenIssuer ?? this.issuer)}`,
+              `| expected aud=${JSON.stringify(this.audience)} iss=${JSON.stringify(this.tokenIssuers ?? this.issuer)}`,
           );
         } catch {
           // Not even a decodable JWT — nothing useful to add.
