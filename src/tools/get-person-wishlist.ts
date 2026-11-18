@@ -21,7 +21,10 @@ export async function getPersonWishlist(input: z.infer<typeof getPersonWishlistS
     };
   }
 
-  const wishlists = await client.getPersonWishlists(resolved.personId, auth.userId);
+  // The ownership guard uses the real signed-in id from GET /me (requireAuth() can hold a placeholder
+  // id), so your own list never carries claim state even if the api mislabels the view.
+  const me = await client.getMe();
+  const wishlists = await client.getPersonWishlists(resolved.personId, me.id);
   if (wishlists.length === 0 || wishlists.every((w) => w.items.length === 0)) {
     return {
       content: [
