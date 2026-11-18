@@ -177,7 +177,8 @@ export interface WishlistSummary {
     note: string | null;
     url: string | null;
     priceEstimate: string | null;
-    isPurchased: boolean;
+    /** Givers only ("nothing left to get"). Never present when the list is the viewer's own. */
+    isPurchased?: boolean;
   }[];
 }
 

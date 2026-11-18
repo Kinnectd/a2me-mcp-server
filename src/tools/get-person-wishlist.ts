@@ -21,7 +21,7 @@ export async function getPersonWishlist(input: z.infer<typeof getPersonWishlistS
     };
   }
 
-  const wishlists = await client.getPersonWishlists(resolved.personId);
+  const wishlists = await client.getPersonWishlists(resolved.personId, auth.userId);
   if (wishlists.length === 0 || wishlists.every((w) => w.items.length === 0)) {
     return {
       content: [
