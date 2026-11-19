@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createHttpApp } from '../../src/http/http-server.js';
-import { DevTokenVerifier } from '../../src/auth/token-verifier.js';
+import { DevTokenVerifier, type TokenVerifier } from '../../src/auth/token-verifier.js';
 import { config } from '../../src/config.js';
 
 describe('MCP HTTP app', () => {
@@ -79,3 +79,41 @@ describe('MCP HTTP app', () => {
     expect(res.headers.get('www-authenticate')).toContain('resource_metadata=');
   });
 });
+
+describe('MCP HTTP app bearer challenges', () => {
+  let server: Server;
+  let baseUrl: string;
+  const rejectAll: TokenVerifier = { name: 'reject-all', verify: async () => null };
+
+  beforeAll(async () => {
+    const app = createHttpApp(rejectAll);
+    await new Promise<void>((resolve) => {
+      server = app.listen(0, () => resolve());
+    });
+    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  const post = (headers: Record<string, string>) =>
+    fetch(`${baseUrl}/mcp`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: '{}' });
+
+  it('challenges a supplied-but-rejected token with error="invalid_token" and resource_metadata', async () => {
+    const res = await post({ authorization: 'Bearer expired-token' });
+    expect(res.status).toBe(401);
+    const challenge = res.headers.get('www-authenticate') ?? '';
+    expect(challenge).toContain('error="invalid_token"');
+    expect(challenge).toContain('resource_metadata=');
+  });
+
+  it('challenges a missing token without an error parameter', async () => {
+    const res = await post({});
+    expect(res.status).toBe(401);
+    const challenge = res.headers.get('www-authenticate') ?? '';
+    expect(challenge).toContain('resource_metadata=');
+    expect(challenge).not.toContain('error=');
+  });
+});
+
