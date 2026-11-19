@@ -20,4 +20,5 @@ COPY --from=build /app/dist-widgets/ ./dist-widgets/
 # Cloud Run routes traffic to $PORT (default 8080) and requires the remote HTTP transport.
 ENV MCP_TRANSPORT=http
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+# Tracing preload (OTel -> Cloud Trace); sampling is OTEL_TRACES_SAMPLER_ARG (0 in prod, 0.2 on dev).
+CMD ["node", "--import", "./dist/tracing.js", "dist/index.js"]
