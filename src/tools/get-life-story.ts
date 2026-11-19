@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ApiHttpError } from '../client/a2me-api-client.js';
+import { ApiHttpError, NO_ACCOUNT_CODE } from '../client/a2me-api-client.js';
 import { requireAuth } from '../auth/auth-context.js';
 import { A2MeApiClient } from '../client/a2me-api-client.js';
 import { config } from '../config.js';
@@ -45,7 +45,7 @@ export async function getLifeStory(input: z.infer<typeof getLifeStorySchema>) {
     ],
   };
   } catch (err) {
-    if (err instanceof ApiHttpError && err.status === 403) {
+    if (err instanceof ApiHttpError && err.status === 403 && err.code !== NO_ACCOUNT_CODE) {
       return {
         content: [
           {

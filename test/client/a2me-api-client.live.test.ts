@@ -159,6 +159,26 @@ describe('A2MeApiClient no-account error (live path)', () => {
     vi.unstubAllGlobals();
   });
 
+  it('does not swallow MCP_NO_ACCOUNT in the optional-resource fallback, but still swallows a plain 403', async () => {
+    const { A2MeApiClient, ApiHttpError } = await import('../../src/client/a2me-api-client.js');
+    const client = new A2MeApiClient('http://test.local/api', 'tok');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ code: 'MCP_NO_ACCOUNT', maskedEmail: 'b***@gmail.com' }), { status: 403 }),
+      ),
+    );
+    const err = await client.getUnansweredStoryQuestions('p1', 'Jane').catch((e) => e);
+    expect(err).toBeInstanceOf(ApiHttpError);
+    expect(err).toMatchObject({ code: 'MCP_NO_ACCOUNT' });
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 403 })));
+    await expect(client.getUnansweredStoryQuestions('p1', 'Jane')).resolves.toBeDefined();
+    vi.unstubAllGlobals();
+  });
+
   it('leaves code undefined when the error body is not JSON', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 403 })));
     const { A2MeApiClient } = await import('../../src/client/a2me-api-client.js');
