@@ -56,4 +56,7 @@ npm run format       # prettier --write .
     (environment=`prod`) → Cloud Run, through the shared `kinnectd-workflows` `deploy-service.yml`.
     Per-env values (`MCP_PUBLIC_URL`, `MCP_AUTH_ISSUER`, `MCP_AUTH_AUDIENCE`, `A2ME_API_URL`) are
     set there.
+- **Tracing:** OpenTelemetry -> Google Cloud Trace via `src/tracing.ts` (preloaded by `node --import`). Sampling is
+  `OTEL_TRACES_SAMPLER_ARG`: 0 by default and in prod (dark), 0.2 when `MCP_PUBLIC_URL` is a `dev.` host.
+  Prod on = set that env var on the Cloud Run service.
 - Any future credentials must come from env/secret stores — never commit tokens.
