@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { config } from './config.js';
-import { ApiHttpError } from './client/a2me-api-client.js';
+import { ApiHttpError, NO_ACCOUNT_CODE } from './client/a2me-api-client.js';
 
 import { getFamilyMembers } from './tools/get-family-members.js';
 import { getUpcomingFamilyDates } from './tools/get-upcoming-family-dates.js';
@@ -43,6 +43,20 @@ export async function handle<T>(
     return await run();
   } catch (err) {
     console.error(`[tool ${label}] failed:`, err instanceof Error ? err.message : String(err));
+    // Valid sign-in, but that email has no A2Me account in this environment (api answers 403
+    // MCP_NO_ACCOUNT with a masked address). Say exactly that, not "couldn't be reached".
+    if (err instanceof ApiHttpError && err.code === NO_ACCOUNT_CODE) {
+      const who = err.maskedEmail ?? 'this email';
+      return {
+        isError: true,
+        content: [
+          {
+            type: 'text' as const,
+            text: `There's no A2Me account for ${who} here. Sign in with the email you use for A2Me, or reconnect.`,
+          },
+        ],
+      };
+    }
     // The MCP layer accepted the token but a2me rejected it (revoked, user removed, identity
     // lookup failed). Say so plainly: a generic "try again" leaves the assistant retrying a dead
     // connection forever, which reads as the connector silently expiring.

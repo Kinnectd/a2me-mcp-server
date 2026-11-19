@@ -303,10 +303,29 @@ function chapterHeading(key: string): string {
 }
 
 /** Error from a non-2xx kinnectd-api response; carries the status for 403/404 fallbacks. */
+export const NO_ACCOUNT_CODE = 'MCP_NO_ACCOUNT';
+
+/** Best-effort parse of `{code, maskedEmail}` from an api error body; never throws. */
+async function readErrorBody(res: Response): Promise<{ code?: string; maskedEmail?: string }> {
+  try {
+    const body = (await res.json()) as { code?: unknown; maskedEmail?: unknown };
+    return {
+      code: typeof body.code === 'string' ? body.code : undefined,
+      maskedEmail: typeof body.maskedEmail === 'string' ? body.maskedEmail : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export class ApiHttpError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    /** Machine-readable code from the api error body (e.g. `MCP_NO_ACCOUNT`), when present. */
+    public readonly code?: string,
+    /** Masked sign-in email the api echoes back with `MCP_NO_ACCOUNT` (e.g. `b***@gmail.com`). */
+    public readonly maskedEmail?: string,
   ) {
     super(message);
     this.name = 'ApiHttpError';
@@ -392,9 +411,12 @@ export class A2MeApiClient {
         signal: controller.signal,
       });
       if (!res.ok) {
+        const { code, maskedEmail } = await readErrorBody(res);
         throw new ApiHttpError(
           `A2Me API ${path} failed: ${res.status} ${res.statusText}`,
           res.status,
+          code,
+          maskedEmail,
         );
       }
       return (await res.json()) as T;
@@ -643,6 +665,8 @@ export class A2MeApiClient {
     try {
       return await this.get<T>(path);
     } catch (err) {
+      // "No A2Me account for this sign-in" is not an absence of data: always surface it.
+      if (err instanceof ApiHttpError && err.code === NO_ACCOUNT_CODE) throw err;
       if (err instanceof ApiHttpError && (err.status === 404 || (forbiddenAsNull && err.status === 403))) {
         return null;
       }

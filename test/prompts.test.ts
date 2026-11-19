@@ -81,6 +81,18 @@ describe('handle() graceful errors', () => {
     expect(text).toContain('disconnect and reconnect');
   });
 
+  it('says there is no A2Me account when the api answers MCP_NO_ACCOUNT', async () => {
+    const res = await handle('family members', async () => {
+      throw new ApiHttpError('A2Me API /me failed: 403 Forbidden', 403, 'MCP_NO_ACCOUNT', 'b***@gmail.com');
+    });
+    expect(res).toMatchObject({ isError: true });
+    const text = (res as { content: { text: string }[] }).content[0].text;
+    expect(text).toBe(
+      "There's no A2Me account for b***@gmail.com here. Sign in with the email you use for A2Me, or reconnect.",
+    );
+    expect(text).not.toContain('reach');
+  });
+
   it('keeps the generic retry message for other API failures', async () => {
     const res = await handle('family members', async () => {
       throw new ApiHttpError('A2Me API /me/v2/family failed: 500 Internal Server Error', 500);
