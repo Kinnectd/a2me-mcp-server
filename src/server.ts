@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { config } from './config.js';
+import { ApiHttpError } from './client/a2me-api-client.js';
 
 import { getFamilyMembers } from './tools/get-family-members.js';
 import { getUpcomingFamilyDates } from './tools/get-upcoming-family-dates.js';
@@ -42,6 +43,20 @@ export async function handle<T>(
     return await run();
   } catch (err) {
     console.error(`[tool ${label}] failed:`, err instanceof Error ? err.message : String(err));
+    // The MCP layer accepted the token but a2me rejected it (revoked, user removed, identity
+    // lookup failed). Say so plainly: a generic "try again" leaves the assistant retrying a dead
+    // connection forever, which reads as the connector silently expiring.
+    if (err instanceof ApiHttpError && err.status === 401) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: 'text' as const,
+            text: 'A2Me no longer recognizes this connection. Please disconnect and reconnect the A2Me connector (sign in again) to continue.',
+          },
+        ],
+      };
+    }
     return {
       isError: true,
       content: [
