@@ -16,7 +16,9 @@ export function buildProtectedResourceMetadata(): ProtectedResourceMetadata {
     // The managed provider's issuer (Scalekit). Empty until configured — clients then have nothing
     // to discover, which is correct pre-launch.
     authorization_servers: config.authServerIssuer ? [config.authServerIssuer] : [],
-    scopes_supported: ['family:read'],
+    // offline_access: lets clients (Claude, ChatGPT) request a refresh token so the connection
+    // survives access-token expiry instead of forcing a re-login every hour.
+    scopes_supported: ['family:read', 'offline_access'],
     bearer_methods_supported: ['header'],
   };
 }
