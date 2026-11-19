@@ -10,7 +10,7 @@ COPY widgets/ ./widgets/
 RUN npm run build   # tsc (-> dist/) + build:widgets (-> dist-widgets/)
 
 # --- runtime stage: prod deps + compiled output only ---
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./

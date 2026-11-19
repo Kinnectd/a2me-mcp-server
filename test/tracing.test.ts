@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { isIgnoredPath, resolveProjectId, resolveSampleRatio } from '../src/tracing.js';
+import { SamplingDecision } from '@opentelemetry/sdk-trace-base';
+import { ROOT_CONTEXT, trace, TraceFlags } from '@opentelemetry/api';
+import { buildSampler, isIgnoredPath, resolveProjectId, resolveSampleRatio } from '../src/tracing.js';
 
 describe('tracing config', () => {
   it('is dark (0) by default and in prod', () => {
@@ -27,5 +29,17 @@ describe('tracing config', () => {
     expect(resolveProjectId({ MCP_PUBLIC_URL: 'https://dev.mcp.a2me.app' })).toBe('kinnectd-dev');
     expect(resolveProjectId({ MCP_PUBLIC_URL: 'https://mcp.a2me.app' })).toBe('kinnectd-prod');
     expect(resolveProjectId({ GOOGLE_CLOUD_PROJECT: 'x' })).toBe('x');
+  });
+  it('stays dark at ratio 0 even for a sampled remote parent', () => {
+    const parent = trace.setSpanContext(ROOT_CONTEXT, {
+      traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+      spanId: '00f067aa0ba902b7',
+      traceFlags: TraceFlags.SAMPLED,
+      isRemote: true,
+    });
+    const r = buildSampler(0).shouldSample(parent, '4bf92f3577b34da6a3ce929d0e0e4736', 'x', 0, {}, []);
+    expect(r.decision).toBe(SamplingDecision.NOT_RECORD);
+    const on = buildSampler(1).shouldSample(parent, '4bf92f3577b34da6a3ce929d0e0e4736', 'x', 0, {}, []);
+    expect(on.decision).toBe(SamplingDecision.RECORD_AND_SAMPLED);
   });
 });

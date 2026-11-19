@@ -14,7 +14,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
-import { ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-base';
+import { AlwaysOffSampler, ParentBasedSampler, TraceIdRatioBasedSampler, type Sampler } from '@opentelemetry/sdk-trace-base';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { GoogleAuth } from 'google-auth-library';
@@ -27,6 +27,16 @@ export function resolveSampleRatio(env: NodeJS.ProcessEnv = process.env): number
     if (Number.isFinite(parsed)) return Math.min(1, Math.max(0, parsed));
   }
   return (env.MCP_PUBLIC_URL ?? '').includes('://dev.') ? 0.2 : 0;
+}
+
+/**
+ * Zero means dark: an unconditional off sampler, so an incoming sampled `traceparent` cannot force
+ * recording. Above zero the sampler is parent-based with a ratio root.
+ */
+export function buildSampler(ratio: number): Sampler {
+  return ratio <= 0
+    ? new AlwaysOffSampler()
+    : new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(ratio) });
 }
 
 /** Cloud Trace routes spans by the `gcp.project_id` resource attribute. */
@@ -60,9 +70,7 @@ export function startTracing(env: NodeJS.ProcessEnv = process.env): NodeSDK | un
     const sdk = new NodeSDK({
       resource: resourceFromAttributes({ 'gcp.project_id': resolveProjectId(env) }),
       serviceName: env.OTEL_SERVICE_NAME || 'a2me-mcp-server',
-      sampler: new ParentBasedSampler({
-        root: new TraceIdRatioBasedSampler(resolveSampleRatio(env)),
-      }),
+      sampler: buildSampler(resolveSampleRatio(env)),
       traceExporter,
       instrumentations: [
         new HttpInstrumentation({
@@ -73,8 +81,11 @@ export function startTracing(env: NodeJS.ProcessEnv = process.env): NodeSDK | un
       ],
     });
     sdk.start();
+    // Flush spans (bounded), then exit: installing a SIGTERM handler removes Node's default
+    // termination, so we must terminate explicitly or the container lingers until SIGKILL.
     const stop = () => {
-      sdk.shutdown().catch(() => undefined);
+      const bound = new Promise<void>((resolve) => setTimeout(resolve, 3000).unref());
+      void Promise.race([sdk.shutdown().catch(() => undefined), bound]).finally(() => process.exit(0));
     };
     process.once('SIGTERM', stop);
     return sdk;
