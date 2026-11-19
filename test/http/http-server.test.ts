@@ -40,7 +40,7 @@ describe('MCP HTTP app', () => {
     const res = await fetch(`${baseUrl}/.well-known/oauth-protected-resource`);
     expect(res.status).toBe(200);
     const md = (await res.json()) as { scopes_supported: string[] };
-    expect(md.scopes_supported).toEqual(['family:read']);
+    expect(md.scopes_supported).toEqual(['family:read', 'offline_access']);
   });
 
   it('serves the OpenAI Apps challenge token when configured, 404 when not', async () => {
