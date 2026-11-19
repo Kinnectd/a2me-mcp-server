@@ -1,7 +1,8 @@
 name: Security Scan
 
-# Free scanning (gitleaks, Semgrep OSS, OSV-Scanner, Trivy) via the shared workflow in kinnectd-workflows.
-# Report-only for now (enforce: false): findings appear in the job summary and run artifacts, nothing blocks.
+# Self-contained copy of kinnectd-workflows security-scan.yml (this repo is public, so it cannot call the
+# private reusable workflow). gitleaks, Semgrep OSS, OSV-Scanner, Trivy; report-only (ENFORCE=false).
+# Keep tool versions in sync with kinnectd-workflows.
 on:
   pull_request:
   schedule:
@@ -11,8 +12,249 @@ on:
 permissions:
   contents: read
 
+env:
+  ENFORCE: "false"
+  SEMGREP_CONFIGS: "p/default p/secrets p/dockerfile p/typescript p/javascript p/java p/kotlin"
+  SKIP_DIRS: "node_modules,build,.gradle,.dart_tool,Pods,.svelte-kit,dist,coverage"
+  GITLEAKS_VERSION: "8.30.1"
+  OSV_VERSION: "2.7.1"
+  TRIVY_VERSION: "0.76.2"
+  SEMGREP_VERSION: "1.150.0"
+
 jobs:
-  scan:
-    uses: Kinnectd/kinnectd-workflows/.github/workflows/security-scan.yml@main
-    with:
-      enforce: false
+  gitleaks:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -O "${base}/${asset}"
+          curl -fsSL -o gl.sum "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " ${asset}\$" gl.sum | sha256sum -c -
+          tar -xzf "$asset" gitleaks
+      - name: Scan
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          args=(--report-format sarif --report-path out/gitleaks.sarif --redact --exit-code 0 --no-banner)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            args+=(--log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}")
+          fi
+          ./gitleaks git "${args[@]}" .
+      - uses: actions/upload-artifact@v4.4.3
+        if: always()
+        with:
+          name: sarif-gitleaks
+          path: out/
+          if-no-files-found: warn
+
+  semgrep:
+    name: Code (Semgrep OSS)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+      - name: Install Semgrep
+        run: pip install "semgrep==${SEMGREP_VERSION}"
+      - name: Scan
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          args=(scan --metrics=off --quiet --sarif --output out/semgrep.sarif)
+          for c in $SEMGREP_CONFIGS; do args+=(--config "$c"); done
+          IFS=',' read -ra dirs <<<"$SKIP_DIRS"
+          for d in "${dirs[@]}"; do args+=(--exclude "$d"); done
+          semgrep "${args[@]}" .
+      - uses: actions/upload-artifact@v4.4.3
+        if: always()
+        with:
+          name: sarif-semgrep
+          path: out/
+          if-no-files-found: warn
+
+  osv:
+    name: Dependencies (OSV-Scanner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Check out base commit (PR only, to tell NEW from existing)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: _base
+      - name: Install OSV-Scanner
+        run: |
+          set -euo pipefail
+          base="https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}"
+          curl -fsSL -o osv-scanner "${base}/osv-scanner_linux_amd64"
+          curl -fsSL -o osv.sum "${base}/osv-scanner_SHA256SUMS"
+          grep " osv-scanner_linux_amd64\$" osv.sum | sed 's/osv-scanner_linux_amd64/osv-scanner/' | sha256sum -c -
+          chmod +x osv-scanner
+      - name: Scan head (and base on PRs)
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          ./osv-scanner scan source --recursive --format sarif --output-file out/osv.sarif . || true
+          if [ -d _base ]; then
+            ./osv-scanner scan source --recursive --format sarif --output-file out/osv-base.sarif _base || true
+          fi
+      - uses: actions/upload-artifact@v4.4.3
+        if: always()
+        with:
+          name: sarif-osv
+          path: out/
+          if-no-files-found: warn
+
+  trivy:
+    name: Filesystem and config (Trivy)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Install Trivy
+        run: |
+          set -euo pipefail
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          asset="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -O "${base}/${asset}"
+          curl -fsSL -o trivy.sum "${base}/trivy_${TRIVY_VERSION}_checksums.txt"
+          grep " ${asset}\$" trivy.sum | sha256sum -c -
+          tar -xzf "$asset" trivy
+      - name: Scan
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          ./trivy fs --scanners vuln,misconfig,secret --format sarif --output out/trivy.sarif \
+            --skip-dirs "$SKIP_DIRS" --exit-code 0 --quiet .
+      - uses: actions/upload-artifact@v4.4.3
+        if: always()
+        with:
+          name: sarif-trivy
+          path: out/
+          if-no-files-found: warn
+
+  summary:
+    name: Summary and gate
+    needs: [gitleaks, semgrep, osv, trivy]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4.1.8
+        with:
+          pattern: sarif-*
+          path: sarif
+          merge-multiple: true
+      - name: List files changed by the PR
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" > changed.txt || : > changed.txt
+      - name: Count findings and apply the gate
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+
+          def sev(rule, result):
+              props = (rule or {}).get("properties", {}) or {}
+              s = props.get("security-severity") or (result.get("properties", {}) or {}).get("security-severity")
+              try:
+                  v = float(s)
+                  return "critical" if v >= 9 else "high" if v >= 7 else "medium" if v >= 4 else "low"
+              except (TypeError, ValueError):
+                  pass
+              return {"error": "high", "warning": "medium", "note": "low"}.get(result.get("level", "warning"), "medium")
+
+          def load(path):
+              out = []
+              if not os.path.exists(path):
+                  return None
+              with open(path) as f:
+                  data = json.load(f)
+              for run in data.get("runs", []):
+                  rules = {r["id"]: r for r in run.get("tool", {}).get("driver", {}).get("rules", []) if "id" in r}
+                  for res in run.get("results", []):
+                      locs = res.get("locations") or [{}]
+                      uri = (locs[0].get("physicalLocation", {}).get("artifactLocation", {}) or {}).get("uri", "")
+                      rid = res.get("ruleId", "")
+                      msg = (res.get("message", {}) or {}).get("text", "")
+                      out.append({"rule": rid, "sev": sev(rules.get(rid), res), "file": uri.replace("file://", "").lstrip("./"), "msg": msg})
+              return out
+
+          tools = {"gitleaks": "gitleaks.sarif", "semgrep": "semgrep.sarif", "osv": "osv.sarif", "trivy": "trivy.sarif"}
+          counts, findings = {}, {}
+          for tool, fn in tools.items():
+              res = load(os.path.join("sarif", fn))
+              findings[tool] = res
+              if res is None:
+                  counts[tool] = "no result (tool did not run)"
+                  continue
+              c = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+              for r in res:
+                  c[r["sev"]] += 1
+              counts[tool] = c
+
+          pr = os.environ["EVENT"] == "pull_request"
+          enforce = os.environ["ENFORCE"] == "true"
+          changed = set()
+          if pr and os.path.exists("changed.txt"):
+              changed = {l.strip() for l in open("changed.txt") if l.strip()}
+          base_osv = load(os.path.join("sarif", "osv-base.sarif")) or []
+          base_keys = {(r["rule"], r["file"], r["msg"]) for r in base_osv}
+
+          new = []
+          if pr:
+              for r in findings["gitleaks"] or []:
+                  new.append(("gitleaks", r))
+              for tool in ("semgrep", "trivy"):
+                  for r in findings[tool] or []:
+                      if r["sev"] in ("critical", "high") and r["file"] in changed:
+                          new.append((tool, r))
+              for r in findings["osv"] or []:
+                  if r["sev"] in ("critical", "high") and (r["rule"], r["file"], r["msg"]) not in base_keys:
+                      new.append(("osv", r))
+
+          json.dump({"counts": counts, "new_critical_high": [{"tool": t, **r} for t, r in new]}, open("summary.json", "w"), indent=2)
+
+          lines = ["## Security scan", "", "| Tool | Critical | High | Medium | Low |", "| --- | ---: | ---: | ---: | ---: |"]
+          for tool, c in counts.items():
+              lines.append(f"| {tool} | " + (" | ".join(str(c[k]) for k in ("critical", "high", "medium", "low")) if isinstance(c, dict) else f"{c} | | | ") + " |")
+          mode = "ENFORCING" if enforce else "report-only"
+          lines += ["", f"Mode: **{mode}**. Full SARIF is in the run's artifacts (`sarif-*`)."]
+          if pr:
+              lines += ["", f"New critical/high findings in this PR: **{len(new)}**"]
+              for t, r in new[:50]:
+                  lines.append(f"- `{t}` {r['sev']} `{r['rule']}` {r['file']}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+
+          if pr and enforce and new:
+              print(f"::error::{len(new)} new critical/high finding(s); see the job summary")
+              sys.exit(1)
+          PY
+      - uses: actions/upload-artifact@v4.4.3
+        if: always()
+        with:
+          name: security-summary
+          path: summary.json
