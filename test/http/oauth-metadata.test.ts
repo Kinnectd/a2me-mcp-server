@@ -9,7 +9,7 @@ describe('protected resource metadata', () => {
   it('advertises the resource, read-only scope, and header bearer method', () => {
     const md = buildProtectedResourceMetadata();
     expect(md.resource).toBeTruthy();
-    expect(md.scopes_supported).toEqual(['family:read']);
+    expect(md.scopes_supported).toEqual(['family:read', 'offline_access']);
     expect(md.bearer_methods_supported).toEqual(['header']);
   });
 

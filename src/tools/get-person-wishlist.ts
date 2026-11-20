@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ApiHttpError } from '../client/a2me-api-client.js';
+import { ApiHttpError, NO_ACCOUNT_CODE } from '../client/a2me-api-client.js';
 import { requireAuth } from '../auth/auth-context.js';
 import { A2MeApiClient } from '../client/a2me-api-client.js';
 import { config } from '../config.js';
@@ -21,7 +21,10 @@ export async function getPersonWishlist(input: z.infer<typeof getPersonWishlistS
     };
   }
 
-  const wishlists = await client.getPersonWishlists(resolved.personId);
+  // The ownership guard uses the real signed-in id from GET /me (requireAuth() can hold a placeholder
+  // id), so your own list never carries claim state even if the api mislabels the view.
+  const me = await client.getMe();
+  const wishlists = await client.getPersonWishlists(resolved.personId, me.id);
   if (wishlists.length === 0 || wishlists.every((w) => w.items.length === 0)) {
     return {
       content: [
@@ -50,7 +53,7 @@ export async function getPersonWishlist(input: z.infer<typeof getPersonWishlistS
     ],
   };
   } catch (err) {
-    if (err instanceof ApiHttpError && err.status === 403) {
+    if (err instanceof ApiHttpError && err.status === 403 && err.code !== NO_ACCOUNT_CODE) {
       return {
         content: [
           {

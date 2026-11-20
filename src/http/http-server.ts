@@ -97,10 +97,13 @@ export function createHttpApp(verifier: TokenVerifier = createTokenVerifier()): 
     const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
     const principal = token ? await verifier.verify(token) : null;
     if (!principal) {
-      res
-        .status(401)
-        .set('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl()}"`)
-        .json({ error: 'unauthorized' });
+      // A token that was sent but failed verification (expired/revoked/wrong audience) gets
+      // error="invalid_token" (RFC 6750 s3.1) so MCP clients know to use their refresh token
+      // rather than treat the failure as a hard sign-out. No token at all: plain challenge.
+      const challenge = token
+        ? `Bearer error="invalid_token", error_description="The access token is expired or invalid", resource_metadata="${resourceMetadataUrl()}"`
+        : `Bearer resource_metadata="${resourceMetadataUrl()}"`;
+      res.status(401).set('WWW-Authenticate', challenge).json({ error: 'unauthorized' });
       return;
     }
     // Stash the verified token in res.locals (purpose-built per-request storage); the MCP route

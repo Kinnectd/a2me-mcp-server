@@ -125,3 +125,66 @@ describe('A2MeApiClient.getFamilyMembers (live path)', () => {
     expect(member.birthdayMonthDay).toBeNull();
   });
 });
+
+describe('A2MeApiClient no-account error (live path)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv('A2ME_USE_MOCK', 'false');
+    vi.stubEnv('A2ME_API_URL', 'http://test.local/api');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it('carries MCP_NO_ACCOUNT and the masked email from a 403 body, and never swallows it as "no data"', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ code: 'MCP_NO_ACCOUNT', maskedEmail: 'b***@gmail.com' }), {
+            status: 403,
+            statusText: 'Forbidden',
+            headers: { 'content-type': 'application/json' },
+          }),
+      ),
+    );
+    const { A2MeApiClient, ApiHttpError } = await import('../../src/client/a2me-api-client.js');
+    const client = new A2MeApiClient('http://test.local/api', 'tok');
+
+    const err = await client.getFamilyMembers('u0').catch((e) => e);
+    expect(err).toBeInstanceOf(ApiHttpError);
+    expect(err).toMatchObject({ status: 403, code: 'MCP_NO_ACCOUNT', maskedEmail: 'b***@gmail.com' });
+    vi.unstubAllGlobals();
+  });
+
+  it('does not swallow MCP_NO_ACCOUNT in the optional-resource fallback, but still swallows a plain 403', async () => {
+    const { A2MeApiClient, ApiHttpError } = await import('../../src/client/a2me-api-client.js');
+    const client = new A2MeApiClient('http://test.local/api', 'tok');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ code: 'MCP_NO_ACCOUNT', maskedEmail: 'b***@gmail.com' }), { status: 403 }),
+      ),
+    );
+    const err = await client.getUnansweredStoryQuestions('p1', 'Jane').catch((e) => e);
+    expect(err).toBeInstanceOf(ApiHttpError);
+    expect(err).toMatchObject({ code: 'MCP_NO_ACCOUNT' });
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 403 })));
+    await expect(client.getUnansweredStoryQuestions('p1', 'Jane')).resolves.toBeDefined();
+    vi.unstubAllGlobals();
+  });
+
+  it('leaves code undefined when the error body is not JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 403 })));
+    const { A2MeApiClient } = await import('../../src/client/a2me-api-client.js');
+    const client = new A2MeApiClient('http://test.local/api', 'tok');
+    const err = await client.getFamilyMembers('u0').catch((e) => e);
+    expect(err).toMatchObject({ status: 403, code: undefined });
+    vi.unstubAllGlobals();
+  });
+});

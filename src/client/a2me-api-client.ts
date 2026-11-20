@@ -168,7 +168,14 @@ interface ApiWishlistDTO {
   itemCount: number;
 }
 
-interface ApiWishlistDetailDTO {
+/**
+ * `GET /wishlists/{id}` (wish lists Phase 1, kinnectd-api#1650) returns one of two shapes:
+ * - `view: "OWNER"` — the list owner (or anyone acting as them). It has NO claim/purchase fields.
+ * - `view: "GIVER"` — everyone else: `remainingQuantity` and a legacy `isPurchased` (= nothing left).
+ * Older api revisions send no `view` and an `isPurchased` on every item.
+ */
+export interface ApiWishlistDetailDTO {
+  view?: 'OWNER' | 'GIVER';
   title: string;
   description: string | null;
   items: {
@@ -176,9 +183,29 @@ interface ApiWishlistDetailDTO {
     description: string | null;
     url: string | null;
     priceEstimate: string | null;
-    isPurchased: boolean;
+    isPurchased?: boolean;
+    remainingQuantity?: number;
     notes: string | null;
   }[];
+}
+
+/**
+ * Surprise protection: the owner never learns whether a gift was bought. Claim state is emitted only
+ * for an explicit GIVER view and never when the wishlist belongs to the signed-in member, whatever
+ * the api sends.
+ */
+export function toWishlistItems(
+  detail: ApiWishlistDetailDTO | null,
+  ownerIsViewer: boolean,
+): WishlistSummary['items'] {
+  const showClaimState = !ownerIsViewer && detail?.view === 'GIVER';
+  return (detail?.items ?? []).slice(0, 15).map((i) => ({
+    name: i.name,
+    note: i.description ?? i.notes,
+    url: i.url,
+    priceEstimate: i.priceEstimate,
+    ...(showClaimState ? { isPurchased: i.isPurchased === true || i.remainingQuantity === 0 } : {}),
+  }));
 }
 
 interface ApiPostDTO {
@@ -276,10 +303,29 @@ function chapterHeading(key: string): string {
 }
 
 /** Error from a non-2xx kinnectd-api response; carries the status for 403/404 fallbacks. */
+export const NO_ACCOUNT_CODE = 'MCP_NO_ACCOUNT';
+
+/** Best-effort parse of `{code, maskedEmail}` from an api error body; never throws. */
+async function readErrorBody(res: Response): Promise<{ code?: string; maskedEmail?: string }> {
+  try {
+    const body = (await res.json()) as { code?: unknown; maskedEmail?: unknown };
+    return {
+      code: typeof body.code === 'string' ? body.code : undefined,
+      maskedEmail: typeof body.maskedEmail === 'string' ? body.maskedEmail : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export class ApiHttpError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    /** Machine-readable code from the api error body (e.g. `MCP_NO_ACCOUNT`), when present. */
+    public readonly code?: string,
+    /** Masked sign-in email the api echoes back with `MCP_NO_ACCOUNT` (e.g. `b***@gmail.com`). */
+    public readonly maskedEmail?: string,
   ) {
     super(message);
     this.name = 'ApiHttpError';
@@ -365,9 +411,12 @@ export class A2MeApiClient {
         signal: controller.signal,
       });
       if (!res.ok) {
+        const { code, maskedEmail } = await readErrorBody(res);
         throw new ApiHttpError(
           `A2Me API ${path} failed: ${res.status} ${res.statusText}`,
           res.status,
+          code,
+          maskedEmail,
         );
       }
       return (await res.json()) as T;
@@ -616,6 +665,8 @@ export class A2MeApiClient {
     try {
       return await this.get<T>(path);
     } catch (err) {
+      // "No A2Me account for this sign-in" is not an absence of data: always surface it.
+      if (err instanceof ApiHttpError && err.code === NO_ACCOUNT_CODE) throw err;
       if (err instanceof ApiHttpError && (err.status === 404 || (forbiddenAsNull && err.status === 403))) {
         return null;
       }
@@ -843,9 +894,12 @@ export class A2MeApiClient {
 
   /** A person's wishlists with items. The list endpoint returns summaries only, so item details
    * come from per-wishlist detail fetches (capped at 3 lists to stay compact). */
-  async getPersonWishlists(personId: string): Promise<WishlistSummary[]> {
+  async getPersonWishlists(personId: string, viewerUserId?: string): Promise<WishlistSummary[]> {
     if (config.useMock) {
-      return getMockWishlists(personId);
+      const mock = getMockWishlists(personId);
+      if (viewerUserId !== personId) return mock;
+      // Own lists: never any claim state, mock or live.
+      return mock.map((w) => ({ ...w, items: w.items.map(({ isPurchased: _omit, ...rest }) => rest) }));
     }
     const lists = (await this.getOptional<ApiWishlistDTO[]>(`/wishlists/users/${personId}`, { forbiddenAsNull: false })) ?? [];
     const results: WishlistSummary[] = [];
@@ -854,13 +908,7 @@ export class A2MeApiClient {
       results.push({
         title: list.title,
         description: list.description,
-        items: (detail?.items ?? []).slice(0, 15).map((i) => ({
-          name: i.name,
-          note: i.description ?? i.notes,
-          url: i.url,
-          priceEstimate: i.priceEstimate,
-          isPurchased: i.isPurchased,
-        })),
+        items: toWishlistItems(detail, viewerUserId !== undefined && viewerUserId === personId),
       });
     }
     return results;

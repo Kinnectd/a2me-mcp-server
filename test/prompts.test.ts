@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { createServer, handle } from '../src/server.js';
+import { ApiHttpError } from '../src/client/a2me-api-client.js';
 
 async function connectedClient(): Promise<Client> {
   const server = createServer();
@@ -69,5 +70,35 @@ describe('handle() graceful errors', () => {
     expect(text).toContain('family members');
     // The raw technical detail must not leak to the user.
     expect(text).not.toContain('500');
+  });
+
+  it('tells the user to reconnect when A2Me rejects the connection with a 401', async () => {
+    const res = await handle('family members', async () => {
+      throw new ApiHttpError('A2Me API /me/v2/family failed: 401 Unauthorized', 401);
+    });
+    expect(res).toMatchObject({ isError: true });
+    const text = (res as { content: { text: string }[] }).content[0].text;
+    expect(text).toContain('disconnect and reconnect');
+  });
+
+  it('says there is no A2Me account when the api answers MCP_NO_ACCOUNT', async () => {
+    const res = await handle('family members', async () => {
+      throw new ApiHttpError('A2Me API /me failed: 403 Forbidden', 403, 'MCP_NO_ACCOUNT', 'b***@gmail.com');
+    });
+    expect(res).toMatchObject({ isError: true });
+    const text = (res as { content: { text: string }[] }).content[0].text;
+    expect(text).toBe(
+      "There's no A2Me account for b***@gmail.com here. Sign in with the email you use for A2Me, or reconnect.",
+    );
+    expect(text).not.toContain('reach');
+  });
+
+  it('keeps the generic retry message for other API failures', async () => {
+    const res = await handle('family members', async () => {
+      throw new ApiHttpError('A2Me API /me/v2/family failed: 500 Internal Server Error', 500);
+    });
+    const text = (res as { content: { text: string }[] }).content[0].text;
+    expect(text).toContain("couldn't reach A2Me");
+    expect(text).not.toContain('reconnect');
   });
 });
