@@ -299,3 +299,92 @@ describe('A2MeApiClient live tool paths', () => {
     expect(rel!.relationshipLabel).toContain('Parent');
   });
 });
+
+// Quiet placeholders (kinnectd-strategy#217): living relatives imported from a family tree file who
+// haven't claimed their profile. /me/v2/family marks them `quiet: true`; they stay in the family list
+// by name, but no tool surfaces their birthday.
+describe('A2MeApiClient quiet placeholders (live path)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv('A2ME_USE_MOCK', 'false');
+    vi.stubEnv('A2ME_API_URL', 'http://test.local/api');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  function quietMember() {
+    return {
+      ...familyMember({ id: 'q1', fullName: 'Quiet Cousin', birthDate: '1985-06-01' }),
+      neutralLabel: 'Cousin',
+      genderedLabel: 'Cousin',
+      quiet: true,
+    };
+  }
+
+  function family() {
+    return { viewerUserId: USER, members: [familyMember(), quietMember()] };
+  }
+
+  async function client() {
+    const { A2MeApiClient } = await import('../../src/client/a2me-api-client.js');
+    return new A2MeApiClient('http://test.local/api', 'tok');
+  }
+
+  it('keeps a quiet member in the family list by name, without a birthday', async () => {
+    routeFetch([[/\/me\/v2\/family/, family]]);
+    const members = await (await client()).getFamilyMembers(USER);
+    expect(members.map((m) => m.displayName)).toEqual(['Jane Doe', 'Quiet Cousin']);
+    expect(members.find((m) => m.personId === 'q1')!.birthdayMonthDay).toBeNull();
+    expect(members.find((m) => m.personId === 'p1')!.birthdayMonthDay).toBe('04-15');
+  });
+
+  it('getUpcomingDates has no birthday for a quiet member', async () => {
+    routeFetch([
+      [/\/me\/v2\/family/, family],
+      [/\/events/, () => ({ content: [] })],
+    ]);
+    const dates = await (await client()).getUpcomingDates(USER, 366);
+    expect(dates.filter((d) => d.relatedPersonIds.includes('q1'))).toEqual([]);
+    expect(dates.map((d) => d.relatedPersonIds)).toEqual([['p1']]);
+  });
+
+  it('getPersonProfile drops a quiet member’s birthday and important dates', async () => {
+    routeFetch([
+      [/\/me\/v2\/family/, family],
+      [/\/posts\/users\/q1/, () => ({ content: [] })],
+    ]);
+    const profile = await (await client()).getPersonProfile(USER, 'q1');
+    expect(profile).not.toBeNull();
+    expect(profile!.displayName).toBe('Quiet Cousin');
+    expect(profile!.birthdayMonthDay).toBeNull();
+    expect(profile!.importantDates).toEqual([]);
+  });
+
+  it('getBirthdayCardContext drops a quiet member’s birthday', async () => {
+    routeFetch([
+      [/\/me\/v2\/family/, family],
+      [/\/posts\/users\/q1/, () => ({ content: [] })],
+    ]);
+    const ctx = await (await client()).getBirthdayCardContext(USER, 'q1');
+    expect(ctx).not.toBeNull();
+    expect(ctx!.birthdayMonthDay).toBeNull();
+  });
+
+  it('treats a missing or false `quiet` as not quiet (older APIs)', async () => {
+    routeFetch([
+      [
+        /\/me\/v2\/family/,
+        () => ({
+          viewerUserId: USER,
+          members: [familyMember(), { ...quietMember(), quiet: false }],
+        }),
+      ],
+      [/\/events/, () => ({ content: [] })],
+    ]);
+    const dates = await (await client()).getUpcomingDates(USER, 366);
+    expect(dates.map((d) => d.relatedPersonIds[0]).sort()).toEqual(['p1', 'q1']);
+  });
+});
