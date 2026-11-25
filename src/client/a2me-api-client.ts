@@ -55,6 +55,12 @@ interface ApiFamilyMember {
   user: ApiUserDTO;
   neutralLabel?: string;
   genderedLabel?: string;
+  /**
+   * A quiet placeholder: a living relative imported from a family tree file who hasn't claimed the
+   * profile (kinnectd-strategy#217). Their birthday and dates are never surfaced. Absent on older
+   * APIs, which is treated as false.
+   */
+  quiet?: boolean;
 }
 
 interface ApiGetFamilyResponse {
@@ -438,8 +444,9 @@ export class A2MeApiClient {
       // Must stay non-empty: some tools match with `.includes(relationshipLabel)`, and
       // includes('') is always true (false positives).
       relationshipLabel: m.neutralLabel || m.genderedLabel || 'relative',
-      // Privacy: month-day only, never the birth year.
-      birthdayMonthDay: m.user.birthDate ? m.user.birthDate.slice(5) : null,
+      // Privacy: month-day only, never the birth year. A quiet placeholder keeps their name in the
+      // family list but no birthday, so no tool (upcoming dates, profile, card context) surfaces it.
+      birthdayMonthDay: m.quiet !== true && m.user.birthDate ? m.user.birthDate.slice(5) : null,
       profilePhotoUrl: m.user.avatarUrl,
       isManagedAccount: m.user.managedAccountType != null,
       isLegacyAccount: m.user.memorializedAt != null || m.user.deathDate != null,
@@ -497,6 +504,7 @@ export class A2MeApiClient {
 
     // Birthdays derived from the family list (month-day only). Anniversaries aren't exposed by the
     // read-only endpoints, so they're omitted from the live result (vs. the mock).
+    // Quiet placeholders already have no birthday here (see toFamilyMember), so they're skipped.
     const members = await this.getFamilyMembers(userId);
     for (const m of members) {
       if (!m.birthdayMonthDay) continue;
